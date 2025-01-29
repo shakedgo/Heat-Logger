@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 
@@ -15,12 +16,19 @@ type JSONStorage struct {
 }
 
 func NewJSONStorage(filePath string) *JSONStorage {
-	return &JSONStorage{
+	storage := &JSONStorage{
 		filePath: filePath,
 		data: models.HeatingData{
 			History: make([]models.Day, 0),
 		},
 	}
+
+	// Load existing data if available
+	if err := storage.Load(); err != nil {
+		fmt.Printf("Error loading data: %v\n", err)
+	}
+
+	return storage
 }
 
 func (s *JSONStorage) Load() error {
@@ -69,4 +77,18 @@ func (s *JSONStorage) GetRecentEntries(limit int) []models.Day {
 		return s.data.History
 	}
 	return s.data.History[len(s.data.History)-limit:]
+}
+
+func (s *JSONStorage) DeleteEntry(id string) error {
+	s.dataLock.Lock()
+	defer s.dataLock.Unlock()
+
+	for i, entry := range s.data.History {
+		if entry.ID == id {
+			// Remove the entry by slicing
+			s.data.History = append(s.data.History[:i], s.data.History[i+1:]...)
+			return s.save()
+		}
+	}
+	return fmt.Errorf("entry with ID %s not found", id)
 }

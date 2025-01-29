@@ -22,29 +22,29 @@ export default {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .latest-result {
   background: white;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   text-align: center;
-}
 
-h2 {
-  margin-top: 0;
-  color: #2c3e50;
-}
+  h2 {
+    margin-top: 0;
+    color: #2c3e50;
+  }
 
-.result-value {
-  font-size: 2em;
-  font-weight: bold;
-  color: #42b983;
-  margin: 20px 0;
-}
+  .result-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #42b983;
+    margin: 20px 0;
+  }
 
-.result-note {
-  color: #666;
-  font-size: 0.9em;
+  .result-note {
+    color: #666;
+    font-size: 0.9em;
+  }
 }
 </style> 

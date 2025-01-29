@@ -79,17 +79,23 @@ export default {
   methods: {
     handleCalculate() {
       const data = {
+        duration: parseFloat(this.formData.showerDuration),
+        temperature: parseFloat(this.formData.averageTemperature)
+      };
+
+      this.$emit('calculate', data);
+      this.currentEntry = {
         id: uuidv4(),
         date: new Date().toISOString(),
         averageTemperature: parseFloat(this.formData.averageTemperature),
         showerDuration: parseFloat(this.formData.showerDuration)
       };
-
-      this.$emit('calculate', data);
-      this.currentEntry = { ...data };
     },
     handleFeedback() {
-      if (!this.currentEntry || this.latestHeatingTime === null) return;
+      if (!this.currentEntry || this.latestHeatingTime === null) {
+        console.warn('Cannot submit feedback without a valid entry and heating time');
+        return;
+      }
 
       const feedbackData = {
         ...this.currentEntry,
@@ -97,7 +103,7 @@ export default {
         satisfaction: parseInt(this.formData.satisfaction)
       };
 
-      this.$emit('submit', feedbackData);
+      this.$emit('submitFeedback', feedbackData);
       this.resetForm();
     },
     resetForm() {
@@ -122,41 +128,41 @@ export default {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .input-form {
   background: white;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
 
-h2 {
-  margin-top: 0;
-  color: #2c3e50;
+  h2 {
+    margin-top: 0;
+    color: #2c3e50;
+  }
 }
 
 .form-group {
   margin-bottom: 15px;
-}
 
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  color: #34495e;
-}
+  label {
+    display: block;
+    margin-bottom: 5px;
+    color: #34495e;
+  }
 
-.form-group input {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
-}
+  input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+  }
 
-.form-group small {
-  display: block;
-  color: #666;
-  margin-top: 5px;
+  small {
+    display: block;
+    color: #666;
+    margin-top: 5px;
+  }
 }
 
 button {
@@ -168,10 +174,10 @@ button {
   cursor: pointer;
   font-size: 16px;
   width: 100%;
-}
 
-button:hover {
-  background-color: #3aa876;
+  &:hover {
+    background-color: #3aa876;
+  }
 }
 
 .current-values {
@@ -179,25 +185,25 @@ button:hover {
   padding: 15px;
   border-radius: 4px;
   margin-bottom: 20px;
-}
 
-.current-values p {
-  margin: 5px 0;
-  color: #2c3e50;
+  p {
+    margin: 5px 0;
+    color: #2c3e50;
+  }
 }
 
 .button-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-}
 
-.cancel-btn {
-  background-color: #dc3545;
-}
+  .cancel-btn {
+    background-color: #dc3545;
 
-.cancel-btn:hover {
-  background-color: #c82333;
+    &:hover {
+      background-color: #c82333;
+    }
+  }
 }
 
 .feedback-form {

@@ -14,3 +14,10 @@ type Day struct {
 type HeatingData struct {
 	History []Day `json:"history"`
 }
+
+type FeedbackRequest struct {
+	ShowerDuration     float64 `json:"showerDuration" binding:"required"`
+	AverageTemperature float64 `json:"averageTemperature" binding:"required"`
+	Satisfaction       int     `json:"satisfaction" binding:"required"`
+	HeatingTime        float64 `json:"heatingTime" binding:"required"`
+}

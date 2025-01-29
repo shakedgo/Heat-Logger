@@ -1,3 +1,68 @@
 {
-  "history": []
+  "history": [
+    {
+      "id": "76c05f27-6517-42ba-909e-3c4e65c765c7",
+      "date": "2025-01-29T18:11:43.398Z",
+      "showerDuration": 45,
+      "averageTemperature": 25,
+      "satisfaction": 8,
+      "heatingTime": 67.5
+    },
+    {
+      "id": "7bee4c46-3862-453e-87ea-51fc85b5cf03",
+      "date": "2025-01-29T18:22:15.192Z",
+      "showerDuration": 45,
+      "averageTemperature": 25,
+      "satisfaction": 7,
+      "heatingTime": 57.9
+    },
+    {
+      "id": "bbe60f4d-c560-436b-b579-9521452e77d0",
+      "date": "2025-01-29T21:58:07.383837435+02:00",
+      "showerDuration": 45,
+      "averageTemperature": 25,
+      "satisfaction": 5,
+      "heatingTime": 52.833333333333336
+    },
+    {
+      "id": "80aa7133-76b4-4545-bff7-b5a3a47fc38b",
+      "date": "2025-01-29T22:06:35.903379763+02:00",
+      "showerDuration": 45,
+      "averageTemperature": 25,
+      "satisfaction": 3,
+      "heatingTime": 48.33333333333333
+    },
+    {
+      "id": "a28d53cd-2736-448b-ab28-4e934376ab38",
+      "date": "2025-01-29T22:06:52.553243373+02:00",
+      "showerDuration": 45,
+      "averageTemperature": 25,
+      "satisfaction": 3,
+      "heatingTime": 49.46666666666666
+    },
+    {
+      "id": "bc9bd1df-fab6-440e-a586-ea31e49eea84",
+      "date": "2025-01-29T22:07:02.995041029+02:00",
+      "showerDuration": 45,
+      "averageTemperature": 25,
+      "satisfaction": 4,
+      "heatingTime": 50.4
+    },
+    {
+      "id": "8108f52b-6fd8-4c4c-b98b-ffa1b1a309cf",
+      "date": "2025-01-29T22:07:11.13293497+02:00",
+      "showerDuration": 45,
+      "averageTemperature": 25,
+      "satisfaction": 5,
+      "heatingTime": 52.8
+    },
+    {
+      "id": "ebdc0051-fb2b-4701-9cf1-60499aac658a",
+      "date": "2025-01-29T22:07:19.333004568+02:00",
+      "showerDuration": 45,
+      "averageTemperature": 25,
+      "satisfaction": 6,
+      "heatingTime": 54.8
+    }
+  ]
 }

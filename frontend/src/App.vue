@@ -4,11 +4,17 @@
     <div class="content">
       <InputForm 
         @calculate="handleCalculate" 
-        @submit="handleSubmit"
+        @submitFeedback="handleSubmit"
         :latestHeatingTime="latestHeatingTime"
       />
       <LatestResult :heatingTime="latestHeatingTime" />
-      <HistoryList :history="history" />
+      <div class="history-section">
+        <h2>History</h2>
+        <HistoryList 
+          :history="history"
+          @delete="handleDelete"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -50,7 +56,7 @@ export default {
     },
     async handleSubmit(data) {
       try {
-        await fetch('http://localhost:8080/api/feedback', {
+        const response = await fetch('http://localhost:8080/api/feedback', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -58,9 +64,13 @@ export default {
           body: JSON.stringify(data)
         });
 
-        // Only refresh history after submitting feedback
-        await this.loadHistory();
-        this.latestHeatingTime = null;
+        if (response.ok) {
+          // Only load history if feedback was successfully submitted
+          await this.loadHistory();
+          this.latestHeatingTime = null;
+        } else {
+          throw new Error('Failed to submit feedback');
+        }
       } catch (error) {
         console.error('Error:', error);
         alert('An error occurred while saving feedback. Please try again.');
@@ -69,9 +79,32 @@ export default {
     async loadHistory() {
       try {
         const response = await fetch('http://localhost:8080/api/history');
-        this.history = await response.json();
+        const data = await response.json();
+        console.log('Loaded history:', data);
+        this.history = data;
       } catch (error) {
         console.error('Error loading history:', error);
+      }
+    },
+    async handleDelete(id) {
+      try {
+        const response = await fetch(`http://localhost:8080/api/history/delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete record');
+        }
+        
+        // Reload history after successful deletion
+        await this.loadHistory();
+      } catch (error) {
+        console.error('Error deleting record:', error);
+        alert('Failed to delete record. Please try again.');
       }
     }
   },
@@ -81,21 +114,21 @@ export default {
 }
 </script>
 
-<style>
+<style lang="scss">
 .container {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
-}
 
-.content {
-  display: grid;
-  gap: 20px;
-  margin-top: 20px;
-}
+  h1 {
+    text-align: center;
+    color: #2c3e50;
+  }
 
-h1 {
-  text-align: center;
-  color: #2c3e50;
+  .content {
+    display: grid;
+    gap: 20px;
+    margin-top: 20px;
+  }
 }
 </style> 
