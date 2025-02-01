@@ -9,10 +9,10 @@
       />
       <LatestResult :heatingTime="latestHeatingTime" />
       <div class="history-section">
-        <h2>History</h2>
         <HistoryList 
           :history="history"
           @delete="handleDelete"
+          @deleteAll="handleDeleteAll"
         />
       </div>
     </div>
@@ -40,15 +40,8 @@ export default {
   methods: {
     async handleCalculate(data) {
       try {
-        const calcResponse = await fetch('http://localhost:8080/api/calculate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(data)
-        });
-        const calcResult = await calcResponse.json();
-        this.latestHeatingTime = calcResult.heatingTime;
+        const response = await this.$api.post('/calculate', data);
+        this.latestHeatingTime = response.data.heatingTime;
       } catch (error) {
         console.error('Error:', error);
         alert('An error occurred while calculating. Please try again.');
@@ -56,16 +49,8 @@ export default {
     },
     async handleSubmit(data) {
       try {
-        const response = await fetch('http://localhost:8080/api/feedback', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(data)
-        });
-
-        if (response.ok) {
-          // Only load history if feedback was successfully submitted
+        const response = await this.$api.post('/feedback', data);
+        if (response.status === 200) {
           await this.loadHistory();
           this.latestHeatingTime = null;
         } else {
@@ -78,33 +63,37 @@ export default {
     },
     async loadHistory() {
       try {
-        const response = await fetch('http://localhost:8080/api/history');
-        const data = await response.json();
-        console.log('Loaded history:', data);
-        this.history = data;
+        const response = await this.$api.get('/history');
+        console.log('Loaded history:', response.data);
+        this.history = response.data;
       } catch (error) {
         console.error('Error loading history:', error);
       }
     },
     async handleDelete(id) {
       try {
-        const response = await fetch(`http://localhost:8080/api/history/delete`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ id })
-        });
-        
-        if (!response.ok) {
+        const response = await this.$api.post('/history/delete', { id });
+        if (response.status === 200) {
+          await this.loadHistory();
+        } else {
           throw new Error('Failed to delete record');
         }
-        
-        // Reload history after successful deletion
-        await this.loadHistory();
       } catch (error) {
         console.error('Error deleting record:', error);
         alert('Failed to delete record. Please try again.');
+      }
+    },
+    async handleDeleteAll() {
+      try {
+        const response = await this.$api.post('/history/deleteall');
+        if (response.status === 200) {
+          await this.loadHistory();
+        } else {
+          throw new Error('Failed to delete all records');
+        }
+      } catch (error) {
+        console.error('Error deleting all records:', error);
+        alert('Failed to delete all records. Please try again.');
       }
     }
   },

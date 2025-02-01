@@ -1,6 +1,16 @@
 <template>
   <div class="history-list">
-    <h2>History</h2>
+    <div class="header">
+      <h2>History</h2>
+      <div class="actions">
+        <button class="export-btn" @click="exportHistory">
+          <font-awesome-icon icon="file-export" /> Export CSV
+        </button>
+        <button class="delete-all-btn" @click="handleDeleteAll">
+          <font-awesome-icon icon="trash" /> Delete All
+        </button>
+      </div>
+    </div>
     <div class="history-entries" v-if="history.length > 0">
       <div v-for="entry in sortedHistory" :key="entry.id" class="history-entry">
         <div class="entry-date">
@@ -15,22 +25,23 @@
           <div class="satisfaction-bar">
             <div class="satisfaction-label">Satisfaction:</div>
             <div class="satisfaction-scale">
-              <div class="scale-marker cold">❄️</div>
+              <div class="scale-marker cold">
+                <font-awesome-icon icon="snowflake" />
+              </div>
               <div class="scale-bar">
-                <div 
-                  class="satisfaction-indicator"
-                  :style="{ left: ((entry.satisfaction - 1) * 11.11) + '%' }"
-                  :class="getSatisfactionClass(entry.satisfaction)"
-                >
+                <div class="satisfaction-indicator" :style="{ left: ((entry.satisfaction - 1) * 11.11) + '%' }"
+                  :class="getSatisfactionClass(entry.satisfaction)">
                   <span class="indicator-value">{{ entry.satisfaction }}</span>
                 </div>
               </div>
-              <div class="scale-marker hot">🔥</div>
+              <div class="scale-marker hot">
+                <font-awesome-icon icon="fire" />
+              </div>
             </div>
           </div>
         </div>
         <button class="delete-btn" @click="handleDelete(entry.id)" title="Delete record">
-          ×
+          <font-awesome-icon icon="times" />
         </button>
       </div>
     </div>
@@ -49,15 +60,15 @@ export default {
       default: () => []
     }
   },
+  emits: ['delete', 'deleteAll'],
   computed: {
     sortedHistory() {
       if (!Array.isArray(this.history)) {
         console.warn('History is not an array:', this.history);
         return [];
       }
-      // Filter out invalid entries and sort
-      const validEntries = this.history.filter(entry => 
-        entry.id && 
+      const validEntries = this.history.filter(entry =>
+        entry.id &&
         entry.date !== "0001-01-01T00:00:00Z" &&
         entry.satisfaction > 0
       );
@@ -77,6 +88,34 @@ export default {
       if (confirm('Are you sure you want to delete this record?')) {
         this.$emit('delete', id);
       }
+    },
+    handleDeleteAll() {
+      if (confirm('Are you sure you want to delete all records? This cannot be undone.')) {
+        this.$emit('deleteAll');
+      }
+    },
+    async exportHistory() {
+      try {
+        const response = await this.$api.get('/history/export', {
+          responseType: 'blob',
+          headers: {
+            'Accept': 'text/csv'
+          }
+        });
+
+        const blob = new Blob([response.data], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `heating_history_${new Date().toLocaleDateString()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error('Failed to export history:', error);
+        alert('Failed to export history. Please try again.');
+      }
     }
   },
   mounted() {
@@ -90,94 +129,140 @@ export default {
   background: white;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
-  h2 {
-    margin-top: 0;
-    color: #2c3e50;
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .export-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .export-btn:hover {
+    background-color: #45a049;
+  }
+
+  .delete-all-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .delete-all-btn:hover {
+    background-color: #da190b;
   }
 
   .history-entries {
-    max-height: 400px;
-    overflow-y: auto;
-    padding-right: 10px;
+    & {
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    .history-entry {
+      & {
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: flex-start;
+        position: relative;
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .entry-date {
+        min-width: 100px;
+        color: #666;
+      }
+
+      .entry-details {
+        & {
+          flex-grow: 1;
+          margin-left: 20px;
+        }
+
+        .entry-stats {
+          & {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+          }
+
+          >div {
+            font-size: 0.95em;
+            color: #2c3e50;
+            white-space: nowrap;
+          }
+
+          .heating-time {
+            color: #42b983;
+            font-weight: 500;
+          }
+        }
+      }
+
+      .delete-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border-radius: 50%;
+        background: #dc3545;
+        color: white;
+        border: none;
+        font-size: 14px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover {
+          background: #c82333;
+        }
+      }
+
+      &:hover {
+        .delete-btn {
+          opacity: 1;
+        }
+      }
+    }
   }
 
   .no-history {
     text-align: center;
     color: #666;
     padding: 20px;
-  }
-}
-
-.history-entry {
-  padding: 15px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  align-items: flex-start;
-  position: relative;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  .entry-date {
-    min-width: 100px;
-    color: #666;
-  }
-
-  .entry-details {
-    flex-grow: 1;
-    margin-left: 20px;
-
-    .entry-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 8px;
-      margin-bottom: 10px;
-      
-      > div {
-        font-size: 0.95em;
-        color: #2c3e50;
-        white-space: nowrap;
-      }
-
-      .heating-time {
-        color: #42b983;
-        font-weight: 500;
-      }
-    }
-  }
-
-  .delete-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border-radius: 50%;
-    background: #dc3545;
-    color: white;
-    border: none;
-    font-size: 18px;
-    line-height: 1;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-      background: #c82333;
-    }
-  }
-
-  &:hover {
-    .delete-btn {
-      opacity: 1;
-    }
   }
 }
 
@@ -200,14 +285,13 @@ export default {
 .scale-bar {
   flex-grow: 1;
   height: 8px;
-  background: linear-gradient(
-    to right,
-    #00b4d8,  // cold
-    #90e0ef,  // cool
-    #caf0f8,  // perfect
-    #ffba08,  // warm
-    #dc2f02   // hot
-  );
+  background: linear-gradient(to right,
+      #00b4d8, // cold
+      #90e0ef, // cool
+      #caf0f8, // perfect
+      #ffba08, // warm
+      #dc2f02 // hot
+    );
   border-radius: 4px;
   position: relative;
 }
@@ -256,4 +340,4 @@ export default {
     color: #dc2f02;
   }
 }
-</style> 
+</style>

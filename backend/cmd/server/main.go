@@ -24,7 +24,7 @@ func main() {
 	// Initialize handlers
 	heatingHandler := handlers.NewHeatingHandler(heatingService)
 
-	// Setup router
+	// Setup router with all routes
 	router := api.SetupRouter(heatingHandler)
 
 	// Start server

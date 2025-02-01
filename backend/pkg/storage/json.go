@@ -92,3 +92,11 @@ func (s *JSONStorage) DeleteEntry(id string) error {
 	}
 	return fmt.Errorf("entry with ID %s not found", id)
 }
+
+func (s *JSONStorage) DeleteAll() error {
+	s.dataLock.Lock()
+	defer s.dataLock.Unlock()
+
+	s.data.History = make([]models.Day, 0)
+	return s.save()
+}
