@@ -40,7 +40,8 @@
           type="number" 
           id="satisfaction" 
           v-model="formData.satisfaction" 
-          required 
+          required
+          step="0.1"
           min="1" 
           max="10"
         >
@@ -100,7 +101,7 @@ export default {
       const feedbackData = {
         ...this.currentEntry,
         heatingTime: this.latestHeatingTime,
-        satisfaction: parseInt(this.formData.satisfaction)
+        satisfaction: parseFloat(this.formData.satisfaction)
       };
 
       this.$emit('submitFeedback', feedbackData);
