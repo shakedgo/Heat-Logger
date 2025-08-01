@@ -65,7 +65,7 @@ export default {
       try {
         const response = await this.$api.get('/history');
         console.log('Loaded history:', response.data);
-        this.history = response.data;
+        this.history = response.data.history;
       } catch (error) {
         console.error('Error loading history:', error);
       }

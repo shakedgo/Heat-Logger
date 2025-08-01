@@ -20,15 +20,16 @@ This is a personal web application that predicts optimal water heater timing bas
 
 ### API Design
 - RESTful endpoints following Go conventions
-- Use chi router for routing
+- Use Gin framework for routing and HTTP handling
 - Implement proper HTTP status codes and error handling
 - Use JSON for request/response bodies
 - Endpoints needed:
-  - POST /api/records - Create daily record
-  - GET /api/records - Get all records
-  - GET /api/records/{date} - Get specific day
-  - GET /api/prediction - Get next day prediction
-  - PUT /api/records/{date} - Update record
+  - POST /api/calculate - Calculate heating time
+  - POST /api/feedback - Save user feedback
+  - GET /api/history - Get all records
+  - POST /api/history/delete - Delete specific record
+  - POST /api/history/deleteall - Delete all records
+  - GET /api/history/export - Export CSV
 
 ### Prediction Logic
 - Start with simple linear regression model
@@ -46,7 +47,7 @@ This is a personal web application that predicts optimal water heater timing bas
 - Use godoc comments for public functions
 
 ### Dependencies
-- chi/router for routing
+- gin-gonic/gin for routing and HTTP handling
 - gorm.io/gorm for database
 - gorm.io/driver/sqlite for SQLite
 - encoding/json for JSON handling

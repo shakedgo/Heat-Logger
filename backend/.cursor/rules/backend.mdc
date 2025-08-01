@@ -17,16 +17,17 @@
 
 ## API Design
 - RESTful endpoints following Go conventions
-- Use chi router for routing
+- Use Gin framework for routing and HTTP handling
 - Implement proper HTTP status codes and error handling
 - Use JSON for request/response bodies
 - Endpoints needed:
-  - POST /api/records - Create daily record
-  - GET /api/records - Get all records
-  - GET /api/records/{date} - Get specific day
-  - GET /api/prediction - Get next day prediction
-  - PUT /api/records/{date} - Update record
-- Use middleware for CORS, logging, and error handling
+  - POST /api/calculate - Calculate heating time
+  - POST /api/feedback - Save user feedback
+  - GET /api/history - Get all records
+  - POST /api/history/delete - Delete specific record
+  - POST /api/history/deleteall - Delete all records
+  - GET /api/history/export - Export CSV
+- Use Gin middleware for CORS, logging, and error handling
 
 ## Prediction Logic
 - Start with simple linear regression model
@@ -46,7 +47,7 @@
 - Use interfaces for dependency injection
 
 ## Dependencies
-- chi/router for routing
+- gin-gonic/gin for routing and HTTP handling
 - gorm.io/gorm for database
 - gorm.io/driver/sqlite for SQLite
 - encoding/json for JSON handling
@@ -80,6 +81,13 @@ backend/
     └── database/
         └── database.go
 ```
+
+## Gin-Specific Guidelines
+- Use Gin's context for request/response handling
+- Implement Gin middleware for CORS, logging, and authentication
+- Use Gin's binding for request validation
+- Follow Gin's error handling patterns
+- Use Gin's group routing for API versioning
 
 ## Error Handling
 - Use custom error types for different error scenarios
