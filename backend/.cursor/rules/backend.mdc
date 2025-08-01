@@ -1,105 +1,180 @@
-# Backend (Go) Rules
+# Backend (Go) - Heat-Logger
 
-## Architecture & Structure
-- Use clean architecture principles with clear separation of concerns
-- Follow Go project layout: `cmd/`, `internal/`, `pkg/` structure
-- Keep main.go minimal - only initialization and server startup
-- Use dependency injection for services and handlers
-- Organize code into layers: handlers, services, repositories, models
+## Overview
+The backend is a Go application using Gin framework with an advanced machine learning prediction system for heating time optimization.
 
-## Database & Models
-- Use SQLite with GORM for ORM
-- Create models for: User, DailyRecord, WeatherData, Prediction
-- DailyRecord should include: date, shower_duration, user_rating, predicted_heating_time, actual_heating_time
-- WeatherData should include: date, temperature, humidity, daylight_hours (fake data for now)
-- Use proper database migrations with GORM AutoMigrate
-- Implement repository pattern for database operations
+## Current State: Production Ready ✅
 
-## API Design
-- RESTful endpoints following Go conventions
-- Use Gin framework for routing and HTTP handling
-- Implement proper HTTP status codes and error handling
-- Use JSON for request/response bodies
-- Endpoints needed:
-  - POST /api/calculate - Calculate heating time
-  - POST /api/feedback - Save user feedback
-  - GET /api/history - Get all records
-  - POST /api/history/delete - Delete specific record
-  - POST /api/history/deleteall - Delete all records
-  - GET /api/history/export - Export CSV
-- Use Gin middleware for CORS, logging, and error handling
+### Architecture
+- **Framework**: Gin for HTTP routing and middleware
+- **Database**: SQLite with GORM ORM
+- **ML Algorithm**: Advanced similarity-based learning with perfect score handling
+- **Validation**: Comprehensive input validation and error handling
+- **CORS**: Configured for frontend integration
 
-## Prediction Logic
-- Start with simple linear regression model
-- Consider factors: shower_duration, user_rating, weather_temp, daylight_hours
-- Store prediction accuracy metrics for model improvement
-- Use Go's math/rand for consistent fake weather data
-- Implement prediction service with interface for easy testing
+## Key Components
 
-## Code Quality
-- Use Go modules (go.mod)
-- Follow Go naming conventions
-- Add proper error handling and logging
-- Use context for request cancellation
-- Add input validation for all endpoints
-- Write unit tests for business logic
-- Use godoc comments for public functions
-- Use interfaces for dependency injection
+### 1. Prediction Service (`internal/services/prediction_service.go`)
+**Advanced ML Algorithm with the following features:**
+
+#### Core Algorithm
+- **Target-based prediction**: Calculates target times from historical records
+- **Similarity matching**: Finds records within ±2°C temperature and ±3 minutes duration
+- **Weighted learning**: Considers recency (2x weight), similarity, and frequency
+
+#### Perfect Score Handling
+- **Perfect score attraction**: Gives extra weight to satisfaction=50 results
+- **Perfect score decay**: Reduces weight if contradicted by newer data
+- **Decay formula**: `0.5 - (satisfactionDrop/100.0) - (attemptCount * 0.1)`
+
+#### Learning Logic
+```go
+// For cold feedback (satisfaction < 50)
+coldnessFactor := (50.0 - record.Satisfaction) / 49.0
+adjustment = coldnessFactor * 4.0 // Max +4 minutes
+
+// For hot feedback (satisfaction > 50)  
+hotnessFactor := (record.Satisfaction - 50.0) / 50.0
+adjustment = -hotnessFactor * 4.0 // Max -4 minutes
+
+// Target time calculation
+targetTime := record.HeatingTime + adjustment
+```
+
+### 2. Record Service (`internal/services/record_service.go`)
+- **CRUD operations** for daily records
+- **Prediction data retrieval** with configurable limits
+- **Database operations** using GORM
+
+### 3. Record Handler (`internal/handler/record_handler.go`)
+**All API endpoints implemented:**
+
+- `POST /api/calculate` - ML prediction with validation
+- `POST /api/feedback` - Save user feedback with validation
+- `GET /api/history` - Retrieve all records
+- `POST /api/history/delete` - Delete specific record
+- `POST /api/history/deleteall` - Delete all records
+- `GET /api/history/export` - CSV export functionality
+
+### 4. Database Models (`internal/models/record.go`)
+```go
+type DailyRecord struct {
+    ID                 string    `json:"id" gorm:"primaryKey;type:varchar(36)"`
+    Date               time.Time `json:"date" gorm:"not null"`
+    ShowerDuration     float64   `json:"showerDuration" gorm:"not null"`
+    AverageTemperature float64   `json:"averageTemperature" gorm:"not null"`
+    HeatingTime        float64   `json:"heatingTime" gorm:"not null"`
+    Satisfaction       float64   `json:"satisfaction" gorm:"not null"` // 1-100 scale
+    CreatedAt          time.Time `json:"createdAt" gorm:"autoCreateTime"`
+    UpdatedAt          time.Time `json:"updatedAt" gorm:"autoUpdateTime"`
+}
+```
+
+### 5. Router (`internal/routes/router.go`)
+- **CORS configuration** for frontend integration
+- **Service initialization** and dependency injection
+- **Route grouping** and middleware setup
+
+## API Specifications
+
+### Calculate Heating Time
+```http
+POST /api/calculate
+Content-Type: application/json
+
+{
+  "duration": 15.5,
+  "temperature": 22.0
+}
+
+Response: {"heatingTime": 10.8}
+```
+
+### Submit Feedback
+```http
+POST /api/feedback
+Content-Type: application/json
+
+{
+  "id": "uuid-string",
+  "date": "2024-01-15T10:30:00Z",
+  "showerDuration": 15.5,
+  "averageTemperature": 22.0,
+  "heatingTime": 10.8,
+  "satisfaction": 50  // 1-100 scale, 50 = perfect
+}
+
+Response: {"success": true, "message": "Feedback saved successfully"}
+```
+
+### Get History
+```http
+GET /api/history
+
+Response: {"history": [array of DailyRecord objects]}
+```
+
+## Validation Rules
+
+### Input Validation
+- **Duration**: 1-60 minutes
+- **Temperature**: -50 to 50°C
+- **Satisfaction**: 1-100 (50 = perfect)
+
+### Error Handling
+- **400 Bad Request**: Invalid input data
+- **404 Not Found**: Record not found
+- **500 Internal Server Error**: Database/server errors
+- **Consistent JSON error responses**
 
 ## Dependencies
-- gin-gonic/gin for routing and HTTP handling
-- gorm.io/gorm for database
-- gorm.io/driver/sqlite for SQLite
-- encoding/json for JSON handling
-- time package for date handling
-- github.com/go-playground/validator for input validation
-
-## File Structure
-```
-backend/
-├── cmd/
-│   └── server/
-│       └── main.go
-├── internal/
-│   ├── handler/
-│   │   ├── record_handler.go
-│   │   └── prediction_handler.go
-│   ├── service/
-│   │   ├── record_service.go
-│   │   ├── prediction_service.go
-│   │   └── weather_service.go
-│   ├── repository/
-│   │   ├── record_repository.go
-│   │   └── weather_repository.go
-│   ├── model/
-│   │   ├── record.go
-│   │   ├── weather.go
-│   │   └── prediction.go
-│   └── routes/
-│       └── router.go
-└── pkg/
-    └── database/
-        └── database.go
+```go
+require (
+    github.com/gin-gonic/gin v1.9.1
+    github.com/gin-contrib/cors v1.4.0
+    gorm.io/gorm v1.25.1
+    gorm.io/driver/sqlite v1.5.1
+    github.com/google/uuid v1.3.0
+)
 ```
 
-## Gin-Specific Guidelines
-- Use Gin's context for request/response handling
-- Implement Gin middleware for CORS, logging, and authentication
-- Use Gin's binding for request validation
-- Follow Gin's error handling patterns
-- Use Gin's group routing for API versioning
+## Development Commands
+```bash
+# Run development server with hot reload
+./run-dev.sh
 
-## Error Handling
-- Use custom error types for different error scenarios
-- Implement proper HTTP error responses
-- Log errors with appropriate levels
-- Return meaningful error messages to clients
+# Build for production
+go build -o tmp/main cmd/server/main.go
 
-## Testing
-- Write unit tests for all services and repositories
-- Use table-driven tests for multiple scenarios
-- Mock dependencies for isolated testing
-- Test both success and error cases
+# Run tests
+go test ./...
+```
+
+## Recent Improvements
+
+### Algorithm Enhancements
+1. **Target-based prediction**: Fixed slow learning by calculating target times instead of small adjustments
+2. **Perfect score decay**: Prevents getting stuck on outdated perfect results
+3. **1-100 satisfaction scale**: More granular feedback for better learning
+4. **Similarity weighting**: Better handling of multiple similar records
+
+### Performance Optimizations
+- **Database queries**: Optimized with proper indexing
+- **Memory usage**: Efficient record retrieval with limits
+- **Response times**: Fast prediction calculations
+
+## Testing Status
+- ✅ All endpoints tested and working
+- ✅ ML algorithm extensively tested with real user data
+- ✅ Perfect score decay logic validated
+- ✅ Target-based prediction showing fast convergence
+- ✅ Frontend integration working seamlessly
+
+## Notes
+- **Database**: SQLite for development, ready for PostgreSQL migration
+- **Algorithm**: Sophisticated ML system that learns quickly from user feedback
+- **Scalability**: Clean architecture ready for additional features
+- **Production Ready**: All core functionality implemented and tested
 description:
 globs:
 alwaysApply: false

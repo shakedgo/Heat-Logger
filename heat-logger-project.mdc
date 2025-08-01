@@ -120,7 +120,35 @@ The algorithm has been extensively tested and shows:
 - **Algorithm**: Sophisticated learning system that adapts quickly to user preferences
 - **Integration**: Seamless frontend-backend communication
 - **Future**: Ready for weather integration and advanced ML models
+
+## CRITICAL SAFETY RULE: FILE PROTECTION
+
+### ⚠️ NO FILE DELETION POLICY
+**NEVER delete any files in this project unless explicitly requested by the user.**
+
+### File Protection Guidelines:
+1. **NEVER use `delete_file` tool** unless the user specifically asks for file deletion
+2. **ALWAYS use `search_replace` or `edit_file`** for code modifications
+3. **If a file seems corrupted or needs replacement**, use `search_replace` to fix it instead of deletion
+4. **For major refactoring**, create new files and then ask user permission before removing old ones
+5. **If you accidentally delete a file**, immediately inform the user and help restore it using git
+
+### Safe Code Modification Practices:
+- Use `search_replace` for targeted changes
+- Use `edit_file` for adding new content or complete rewrites
+- Use `read_file` to understand current file state before making changes
+- Always test changes before suggesting deletion of any files
+
+### Emergency Recovery:
+If a file is accidentally deleted:
+1. **Immediately stop** any further modifications
+2. **Inform the user** about the deletion
+3. **Use git commands** to restore the file: `git checkout -- <filename>`
+4. **Verify restoration** by reading the file
+5. **Continue with safe modifications** using `search_replace` or `edit_file`
+
+This rule is critical to prevent data loss and maintain project integrity.
 description:
 globs:
-alwaysApply: false
+alwaysApply: true
 ---

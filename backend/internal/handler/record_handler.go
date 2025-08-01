@@ -90,9 +90,9 @@ func (h *RecordHandler) SubmitFeedback(c *gin.Context) {
 		return
 	}
 
-	if record.Satisfaction < 1 || record.Satisfaction > 10 {
+	if record.Satisfaction < 1 || record.Satisfaction > 100 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Satisfaction rating must be between 1 and 10",
+			"error": "Satisfaction rating must be between 1 and 100",
 		})
 		return
 	}

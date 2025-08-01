@@ -29,7 +29,7 @@
                 <font-awesome-icon icon="snowflake" />
               </div>
               <div class="scale-bar">
-                <div class="satisfaction-indicator" :style="{ left: ((entry.satisfaction - 1) * 11.11) + '%' }"
+                <div class="satisfaction-indicator" :style="{ left: ((entry.satisfaction - 1) * 0.99) + '%' }"
                   :class="getSatisfactionClass(entry.satisfaction)">
                   <span class="indicator-value">{{ entry.satisfaction }}</span>
                 </div>
@@ -80,8 +80,8 @@ export default {
       return new Date(dateString).toLocaleDateString();
     },
     getSatisfactionClass(satisfaction) {
-      if (satisfaction < 4) return 'cold';
-      if (satisfaction > 6) return 'hot';
+      if (satisfaction < 40) return 'cold';
+      if (satisfaction > 60) return 'hot';
       return 'perfect';
     },
     handleDelete(id) {

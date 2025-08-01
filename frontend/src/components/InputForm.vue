@@ -35,17 +35,17 @@
       </div>
 
       <div class="form-group">
-        <label for="satisfaction">How was your shower? (1-10):</label>
+        <label for="satisfaction">How was your shower? (1-100):</label>
         <input 
           type="number" 
           id="satisfaction" 
           v-model="formData.satisfaction" 
           required
-          step="0.1"
+          step="1"
           min="1" 
-          max="10"
+          max="100"
         >
-        <small>1 = too cold, 5 = perfect, 10 = too hot</small>
+        <small>1 = too cold, 50 = perfect, 100 = too hot</small>
       </div>
       
       <div class="button-group">

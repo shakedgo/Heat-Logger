@@ -1,120 +1,189 @@
-# Frontend (Vue 3) Rules
+# Frontend (Vue 3) - Heat-Logger
 
-## Architecture & Structure
-- Use Vue 3 Options API (traditional export default pattern)
-- Follow Vue 3 best practices and conventions
-- Use Pinia for state management
-- Organize components by feature/domain
-- Keep components small and focused
-- Use TypeScript-like JSDoc comments for type safety
+## Overview
+A Vue 3 application with Options API that provides an intuitive interface for the Heat-Logger system. Features a beautiful UI for inputting shower data, viewing predictions, and managing historical records.
 
-## Component Structure
-- Create reusable components: InputForm, HistoryList, PredictionDisplay, WeatherDisplay
-- Use props for component communication
-- Emit events for parent-child communication
-- Use provide/inject sparingly, prefer props/emits
-- Keep components single-responsibility
-- Use mixins or utility functions for reusable logic
+## Current State: Production Ready ✅
 
-## State Management
-- Use Pinia stores for global state
-- Create stores for: records, predictions, weather
-- Keep component state local when possible
-- Use data() and computed properties appropriately
-- Implement proper state persistence if needed
+### Architecture
+- **Framework**: Vue 3 with Options API
+- **Build Tool**: Vite for fast development and building
+- **Styling**: SCSS with modern CSS features
+- **HTTP Client**: Axios for API communication
+- **Icons**: Font Awesome for UI icons
 
-## API Integration
-- Create API service layer in plugins/api.js
-- Use axios or fetch for HTTP requests
-- Handle loading states and error states
-- Implement proper error handling and user feedback
-- Use interceptors for common request/response handling
+## Key Components
 
-## UI/UX Guidelines
-- Use modern, clean design with good contrast
-- Implement responsive design (mobile-first)
-- Use consistent spacing and typography
-- Add loading indicators and error messages
-- Use form validation for user inputs
-- Implement smooth transitions and animations
-- Follow accessibility best practices
+### 1. InputForm (`src/components/InputForm.vue`)
+**Two-stage form for data input and feedback:**
+
+#### Stage 1: Data Input
+- **Temperature input**: Number field with step 0.1
+- **Duration input**: Number field with step 0.5
+- **Validation**: Required fields with proper constraints
+- **Calculate button**: Triggers ML prediction
+
+#### Stage 2: Feedback Collection
+- **Current values display**: Shows entered data and prediction
+- **Satisfaction rating**: 1-100 scale input (50 = perfect)
+- **Help text**: "1 = too cold, 50 = perfect, 100 = too hot"
+- **Submit/Cancel buttons**: Save feedback or reset form
+
+#### Features
+- **UUID generation**: Automatic ID creation for new records
+- **Date handling**: Automatic timestamp creation
+- **Form validation**: Client-side validation with helpful messages
+- **Responsive design**: Works on desktop and mobile
+
+### 2. LatestResult (`src/components/LatestResult.vue`)
+**Displays current prediction results:**
+
+#### Features
+- **Prediction display**: Shows calculated heating time
+- **Loading states**: Visual feedback during API calls
+- **Error handling**: Displays error messages gracefully
+- **Success animations**: Visual confirmation of successful predictions
+
+### 3. HistoryList (`src/components/HistoryList.vue`)
+**Comprehensive historical data visualization:**
+
+#### Data Display
+- **Record cards**: Individual cards for each historical entry
+- **Date formatting**: Human-readable date display
+- **Data organization**: Temperature, duration, heating time, satisfaction
+
+#### Satisfaction Visualization
+- **Visual scale**: Cold (❄️) to Hot (🔥) indicator
+- **Dynamic positioning**: Satisfaction bar with precise positioning
+- **Color coding**: 
+  - Cold: < 40 (blue)
+  - Perfect: 40-60 (green)
+  - Hot: > 60 (red)
+- **1-100 scale**: Updated from old 1-10 scale for granular feedback
+
+#### Interactive Features
+- **Delete functionality**: Remove individual records
+- **Delete all**: Bulk deletion with confirmation
+- **CSV export**: Download historical data
+- **Sorting**: Most recent records first
+
+## API Integration (`src/plugins/api.js`)
+
+### Axios Configuration
+```javascript
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: 'http://localhost:8080/api',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+```
+
+### API Methods
+- `calculate(data)` - Get heating time prediction
+- `submitFeedback(data)` - Save user feedback
+- `getHistory()` - Retrieve all records
+- `deleteRecord(id)` - Delete specific record
+- `deleteAllRecords()` - Delete all records
+- `exportHistory()` - Download CSV file
+
+## Styling System
+
+### SCSS Structure
+- **Component-scoped styles**: Each component has its own styles
+- **Modern CSS features**: Grid, Flexbox, CSS variables
+- **Responsive design**: Mobile-first approach
+- **Consistent theming**: Color scheme and spacing
+
+### Design Features
+- **Clean interface**: Minimalist design with clear hierarchy
+- **Visual feedback**: Hover states, loading indicators
+- **Accessibility**: Proper contrast ratios and focus states
+- **Modern aesthetics**: Rounded corners, shadows, smooth transitions
 
 ## Data Flow
-- Forms should validate input before submission
-- Show real-time feedback for user actions
-- Update predictions immediately after rating submission
-- Display historical data in an easy-to-read format
-- Use optimistic updates where appropriate
 
-## Styling
-- Use SCSS for styling
-- Follow BEM methodology for CSS classes
-- Use CSS custom properties for theming
-- Implement dark/light mode support
-- Use flexbox/grid for layouts
-- Keep styles modular and reusable
+### State Management
+- **Component props**: Parent-child data passing
+- **Event emission**: Child-to-parent communication
+- **Local state**: Component-specific data management
+- **API state**: Loading, success, error states
 
-## Dependencies
-- Vue 3 with Options API
-- Pinia for state management
-- Vite for build tool
-- SCSS for styling
-- Axios for API calls
-- Vue Router for navigation (if needed)
+### User Journey
+1. **Input data**: User enters temperature and duration
+2. **Get prediction**: System calculates optimal heating time
+3. **Use prediction**: User follows the suggested heating time
+4. **Provide feedback**: User rates satisfaction (1-100)
+5. **View history**: User can review past predictions and feedback
 
-## File Structure
-```
-frontend/
-├── src/
-│   ├── components/
-│   │   ├── InputForm.vue
-│   │   ├── HistoryList.vue
-│   │   ├── PredictionDisplay.vue
-│   │   └── WeatherDisplay.vue
-│   ├── stores/
-│   │   ├── records.js
-│   │   ├── predictions.js
-│   │   └── weather.js
-│   ├── plugins/
-│   │   └── api.js
-│   ├── composables/
-│   │   ├── useRecords.js
-│   │   └── usePredictions.js
-│   ├── styles/
-│   │   ├── main.scss
-│   │   ├── variables.scss
-│   │   └── components/
-│   └── App.vue
+## Recent Updates
+
+### Satisfaction Scale Enhancement
+- **Upgraded from 1-10 to 1-100 scale**: More granular feedback
+- **Updated validation**: Frontend validation for new scale
+- **Visual improvements**: Better satisfaction bar positioning
+- **Help text updates**: Clear guidance for new scale
+
+### UI Improvements
+- **Better error handling**: More informative error messages
+- **Loading states**: Improved visual feedback
+- **Responsive design**: Better mobile experience
+- **Accessibility**: Enhanced keyboard navigation
+
+## Development Setup
+
+### Prerequisites
+```bash
+Node.js >= 16
+npm >= 8
 ```
 
-## Component Guidelines
-- Use Options API with export default pattern
-- Define props with proper validation
-- Emit events with typed payloads
-- Use computed properties for derived state
-- Implement proper lifecycle hooks
-- Use teleport for modals if needed
+### Installation
+```bash
+cd frontend
+npm install
+```
 
-## Form Handling
-- Use v-model for form inputs
-- Implement proper validation
-- Show validation errors clearly
-- Use debouncing for real-time validation
-- Handle form submission properly
+### Development Commands
+```bash
+# Start development server
+npm run dev
 
-## Error Handling
-- Implement global error handling
-- Show user-friendly error messages
-- Log errors for debugging
-- Handle network errors gracefully
-- Provide retry mechanisms
+# Build for production
+npm run build
 
-## Performance
-- Use lazy loading for components
-- Implement proper caching strategies
-- Optimize bundle size
-- Use virtual scrolling for large lists
-- Minimize re-renders with proper data properties and computed values
+# Preview production build
+npm run preview
+```
+
+### Configuration
+- **Vite config**: Optimized for Vue 3
+- **Environment variables**: API endpoint configuration
+- **Hot reload**: Fast development experience
+
+## Testing Status
+- ✅ All components working correctly
+- ✅ API integration tested and functional
+- ✅ 1-100 satisfaction scale implemented
+- ✅ Responsive design verified
+- ✅ Error handling tested
+- ✅ CSV export working
+
+## Browser Support
+- **Modern browsers**: Chrome, Firefox, Safari, Edge
+- **Mobile browsers**: iOS Safari, Chrome Mobile
+- **Progressive enhancement**: Graceful degradation for older browsers
+
+## Notes
+- **Vue 3**: Latest Vue version with Composition API available
+- **Options API**: Chosen for simplicity and team familiarity
+- **SCSS**: Advanced styling with variables and mixins
+- **Axios**: Reliable HTTP client with good error handling
+- **Production Ready**: All features implemented and tested
+- **Scalable**: Clean architecture ready for additional features
 description:
 globs:
 alwaysApply: false

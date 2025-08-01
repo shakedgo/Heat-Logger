@@ -2,6 +2,7 @@ package services
 
 import (
 	"math"
+	"time"
 
 	"heat-logger/internal/models"
 )
@@ -29,10 +30,17 @@ type PredictionResponse struct {
 	HeatingTime float64 `json:"heatingTime"`
 }
 
+// SimilarRecord represents a record with similarity score
+type SimilarRecord struct {
+	Record     models.DailyRecord
+	Similarity float64
+	Weight     float64
+}
+
 // PredictHeatingTime calculates the optimal heating time based on input parameters
 func (s *PredictionService) PredictHeatingTime(req *PredictionRequest) (*PredictionResponse, error) {
 	// Get recent records for learning
-	records, err := s.recordService.GetRecordsForPrediction(10)
+	records, err := s.recordService.GetRecordsForPrediction(50) // Increased limit for better learning
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +50,7 @@ func (s *PredictionService) PredictHeatingTime(req *PredictionRequest) (*Predict
 		return s.predictWithDefaults(req), nil
 	}
 
-	// Calculate prediction using simple linear regression
+	// Calculate prediction using similarity-based learning
 	heatingTime := s.calculatePrediction(req, records)
 
 	return &PredictionResponse{
@@ -69,52 +77,189 @@ func (s *PredictionService) predictWithDefaults(req *PredictionRequest) *Predict
 	}
 }
 
-// calculatePrediction uses historical data to improve prediction accuracy
+// calculatePrediction uses a target-based approach to find the optimal heating time.
+// It calculates a "target time" for each similar record and averages them.
 func (s *PredictionService) calculatePrediction(req *PredictionRequest, records []models.DailyRecord) float64 {
-	if len(records) < 3 {
+	similarRecords := s.findSimilarRecords(req, records)
+	if len(similarRecords) == 0 {
 		return s.predictWithDefaults(req).HeatingTime
 	}
 
-	// Calculate average satisfaction from recent records
-	var totalSatisfaction float64
-	var validRecords int
+	var totalWeightedTargetTime float64
+	var totalWeight float64
+
+	for _, similarRecord := range similarRecords {
+		record := similarRecord.Record
+		weight := similarRecord.Weight
+
+		// For perfect scores, apply decay if they are contradicted by newer records.
+		if record.Satisfaction == 50.0 {
+			decay := s.calculatePerfectScoreDecay(record, similarRecords)
+			weight *= decay
+		}
+
+		// Calculate the adjustment needed based on user satisfaction.
+		var adjustment float64
+		if record.Satisfaction < 50.0 {
+			// User was cold, so we need to increase the time.
+			coldnessFactor := (50.0 - record.Satisfaction) / 49.0 // 0-1 scale
+			adjustment = coldnessFactor * 4.0                     // Max +4 mins
+		} else if record.Satisfaction > 50.0 {
+			// User was hot, so we need to decrease the time.
+			hotnessFactor := (record.Satisfaction - 50.0) / 50.0 // 0-1 scale
+			adjustment = -hotnessFactor * 4.0                    // Max -4 mins
+		}
+
+		// The new target is the actual time from the record, plus the adjustment.
+		targetTime := record.HeatingTime + adjustment
+
+		totalWeightedTargetTime += targetTime * weight
+		totalWeight += weight
+	}
+
+	// The final prediction is the weighted average of all target times.
+	if totalWeight > 0 {
+		finalPrediction := totalWeightedTargetTime / totalWeight
+		// Ensure the prediction is within reasonable bounds.
+		if finalPrediction < 2.0 {
+			return 2.0
+		}
+		if finalPrediction > 30.0 {
+			return 30.0
+		}
+		return finalPrediction
+	}
+
+	return s.predictWithDefaults(req).HeatingTime
+}
+
+// findSimilarRecords finds records with similar temperature and duration
+func (s *PredictionService) findSimilarRecords(req *PredictionRequest, records []models.DailyRecord) []SimilarRecord {
+	var similarRecords []SimilarRecord
+	now := time.Now()
 
 	for _, record := range records {
-		if record.Satisfaction > 0 {
-			totalSatisfaction += record.Satisfaction
-			validRecords++
+		// Check if temperature is within ±2°C
+		tempDiff := math.Abs(record.AverageTemperature - req.Temperature)
+		if tempDiff > 2.0 {
+			continue
+		}
+
+		// Check if duration is within ±3 minutes
+		durationDiff := math.Abs(record.ShowerDuration - req.Duration)
+		if durationDiff > 3.0 {
+			continue
+		}
+
+		// Calculate similarity score (0-1, where 1 is perfect match)
+		tempSimilarity := 1.0 - (tempDiff / 2.0)         // 0-1 scale
+		durationSimilarity := 1.0 - (durationDiff / 3.0) // 0-1 scale
+		overallSimilarity := (tempSimilarity + durationSimilarity) / 2.0
+
+		// Calculate recency weight (recent records get 2x weight)
+		daysSince := now.Sub(record.Date).Hours() / 24.0
+		recencyWeight := 1.0
+		if daysSince <= 7.0 { // Within last week
+			recencyWeight = 2.0
+		} else if daysSince <= 30.0 { // Within last month
+			recencyWeight = 1.5
+		}
+
+		// Calculate frequency weight (more similar records = higher confidence)
+		frequencyWeight := s.calculateFrequencyWeight(req, records, record)
+
+		// Combined weight
+		totalWeight := overallSimilarity * recencyWeight * frequencyWeight
+
+		similarRecords = append(similarRecords, SimilarRecord{
+			Record:     record,
+			Similarity: overallSimilarity,
+			Weight:     totalWeight,
+		})
+	}
+
+	return similarRecords
+}
+
+// calculateFrequencyWeight gives higher weight when there are more similar records
+func (s *PredictionService) calculateFrequencyWeight(req *PredictionRequest, allRecords []models.DailyRecord, currentRecord models.DailyRecord) float64 {
+	similarCount := 0
+	totalCount := len(allRecords)
+	var totalSimilarity float64
+
+	// Count how many records have similar conditions and calculate total similarity
+	for _, record := range allRecords {
+		tempDiff := math.Abs(record.AverageTemperature - req.Temperature)
+		durationDiff := math.Abs(record.ShowerDuration - req.Duration)
+
+		if tempDiff <= 2.0 && durationDiff <= 3.0 {
+			similarCount++
+			// Calculate similarity for this record
+			tempSimilarity := 1.0 - (tempDiff / 2.0)
+			durationSimilarity := 1.0 - (durationDiff / 3.0)
+			overallSimilarity := (tempSimilarity + durationSimilarity) / 2.0
+			totalSimilarity += overallSimilarity
 		}
 	}
 
-	avgSatisfaction := 5.0 // Default to neutral
-	if validRecords > 0 {
-		avgSatisfaction = totalSatisfaction / float64(validRecords)
+	// If we have many similar records, give higher weight (more confidence)
+	if similarCount > 0 {
+		// Consider both count and average similarity
+		countFactor := float64(similarCount) / float64(totalCount)
+		avgSimilarity := totalSimilarity / float64(similarCount)
+		return 1.0 + (countFactor * avgSimilarity)
 	}
 
-	// Adjust factors based on satisfaction ratings
-	baseTime := 8.0
-	durationFactor := 0.3
-	tempFactor := -0.1
+	return 1.0
+}
 
-	// Adjust based on average satisfaction
-	if avgSatisfaction < 4.0 {
-		// Users were generally unsatisfied (too cold), increase heating time
-		baseTime += 2.0
-		durationFactor += 0.1
-	} else if avgSatisfaction > 7.0 {
-		// Users were generally satisfied, fine-tune
-		baseTime -= 1.0
-		durationFactor -= 0.05
+// calculatePerfectScoreDecay reduces the weight of perfect scores if they've been contradicted by subsequent attempts
+func (s *PredictionService) calculatePerfectScoreDecay(perfectRecord models.DailyRecord, allSimilarRecords []SimilarRecord) float64 {
+	// Find all records that attempted the same heating time after this perfect score
+	var subsequentAttempts []models.DailyRecord
+
+	for _, similarRecord := range allSimilarRecords {
+		record := similarRecord.Record
+		// Check if this record is after the perfect score and uses similar heating time (±0.2 minutes)
+		if record.Date.After(perfectRecord.Date) &&
+			math.Abs(record.HeatingTime-perfectRecord.HeatingTime) <= 0.2 {
+			subsequentAttempts = append(subsequentAttempts, record)
+		}
 	}
 
-	heatingTime := baseTime + (req.Duration * durationFactor) + (req.Temperature * tempFactor)
-
-	// Ensure reasonable bounds
-	if heatingTime < 2.0 {
-		heatingTime = 2.0
-	} else if heatingTime > 30.0 {
-		heatingTime = 30.0
+	// If no subsequent attempts, no decay needed
+	if len(subsequentAttempts) == 0 {
+		return 1.0
 	}
 
-	return heatingTime
+	// Calculate average satisfaction of subsequent attempts
+	var totalSatisfaction float64
+	for _, attempt := range subsequentAttempts {
+		totalSatisfaction += attempt.Satisfaction
+	}
+	avgSatisfaction := totalSatisfaction / float64(len(subsequentAttempts))
+
+	// If subsequent attempts are consistently worse than perfect (50), apply decay
+	if avgSatisfaction < 50.0 && len(subsequentAttempts) >= 2 {
+		// Calculate decay based on how much worse and how many attempts
+		satisfactionDrop := 50.0 - avgSatisfaction
+		attemptCount := float64(len(subsequentAttempts))
+
+		// Decay formula: more attempts with lower satisfaction = more decay
+		// Base decay of 0.5, additional decay based on satisfaction drop and attempt count
+		decayFactor := 0.5 - (satisfactionDrop / 100.0) - (attemptCount * 0.1)
+
+		// Ensure decay factor is between 0.1 and 1.0
+		if decayFactor < 0.1 {
+			decayFactor = 0.1
+		}
+		if decayFactor > 1.0 {
+			decayFactor = 1.0
+		}
+
+		return decayFactor
+	}
+
+	// No significant decay needed
+	return 1.0
 }
