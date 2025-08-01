@@ -1,0 +1,166 @@
+# Heat-Logger Project Rules
+
+## Project Overview
+This is a personal web application that predicts optimal water heater timing based on user feedback, shower duration, and environmental factors. The app learns from daily ratings (1-10 scale) and adjusts predictions accordingly.
+
+## Backend (Go) Rules
+
+### Architecture & Structure
+- Use clean architecture principles with clear separation of concerns
+- Follow Go project layout: `cmd/`, `internal/`, `pkg/` structure
+- Keep main.go minimal - only initialization and server startup
+- Use dependency injection for services and handlers
+
+### Database & Models
+- Use SQLite with GORM for ORM
+- Create models for: User, DailyRecord, WeatherData, Prediction
+- DailyRecord should include: date, shower_duration, user_rating, predicted_heating_time, actual_heating_time
+- WeatherData should include: date, temperature, humidity, daylight_hours (fake data for now)
+- Use proper database migrations
+
+### API Design
+- RESTful endpoints following Go conventions
+- Use chi router for routing
+- Implement proper HTTP status codes and error handling
+- Use JSON for request/response bodies
+- Endpoints needed:
+  - POST /api/records - Create daily record
+  - GET /api/records - Get all records
+  - GET /api/records/{date} - Get specific day
+  - GET /api/prediction - Get next day prediction
+  - PUT /api/records/{date} - Update record
+
+### Prediction Logic
+- Start with simple linear regression model
+- Consider factors: shower_duration, user_rating, weather_temp, daylight_hours
+- Store prediction accuracy metrics for model improvement
+- Use Go's math/rand for consistent fake weather data
+
+### Code Quality
+- Use Go modules (go.mod)
+- Follow Go naming conventions
+- Add proper error handling and logging
+- Use context for request cancellation
+- Add input validation for all endpoints
+- Write unit tests for business logic
+- Use godoc comments for public functions
+
+### Dependencies
+- chi/router for routing
+- gorm.io/gorm for database
+- gorm.io/driver/sqlite for SQLite
+- encoding/json for JSON handling
+- time package for date handling
+
+## Frontend (Vue 3) Rules
+
+### Architecture & Structure
+- Use Vue 3 Options API (traditional export default pattern)
+- Follow Vue 3 best practices and conventions
+- Use Pinia for state management
+- Organize components by feature/domain
+- Keep components small and focused
+
+### Component Structure
+- Create reusable components: InputForm, HistoryList, PredictionDisplay, WeatherDisplay
+- Use props for component communication
+- Emit events for parent-child communication
+- Use provide/inject sparingly, prefer props/emits
+
+### State Management
+- Use Pinia stores for global state
+- Create stores for: records, predictions, weather
+- Keep component state local when possible
+- Use data() and computed properties appropriately
+
+### API Integration
+- Create API service layer in plugins/api.js
+- Use axios or fetch for HTTP requests
+- Handle loading states and error states
+- Implement proper error handling and user feedback
+
+### UI/UX Guidelines
+- Use modern, clean design with good contrast
+- Implement responsive design (mobile-first)
+- Use consistent spacing and typography
+- Add loading indicators and error messages
+- Use form validation for user inputs
+- Implement smooth transitions and animations
+
+### Data Flow
+- Forms should validate input before submission
+- Show real-time feedback for user actions
+- Update predictions immediately after rating submission
+- Display historical data in an easy-to-read format
+
+### Styling
+- Use SCSS for styling
+- Follow BEM methodology for CSS classes
+- Use CSS custom properties for theming
+- Implement dark/light mode support
+- Use flexbox/grid for layouts
+
+### Dependencies
+- Vue 3 with Options API
+- Pinia for state management
+- Vite for build tool
+- SCSS for styling
+- Axios for API calls
+
+## General Development Rules
+
+### Code Quality
+- Write self-documenting code with clear variable/function names
+- Add comments for complex business logic
+- Follow consistent formatting (use Prettier for frontend)
+- Use TypeScript-like types in JSDoc comments for frontend
+
+### Testing
+- Write unit tests for business logic
+- Test API endpoints with proper test data
+- Test component behavior and user interactions
+- Use meaningful test descriptions
+
+### Data Validation
+- Validate all user inputs on both frontend and backend
+- Sanitize data before database operations
+- Handle edge cases gracefully
+- Provide clear error messages to users
+
+### Performance
+- Optimize database queries
+- Use pagination for large datasets
+- Implement proper caching strategies
+- Minimize bundle size for frontend
+
+### Security
+- Validate and sanitize all inputs
+- Use parameterized queries for database operations
+- Implement proper CORS settings
+- Handle sensitive data appropriately
+
+### Documentation
+- Keep README.md updated with setup instructions
+- Document API endpoints
+- Add inline comments for complex logic
+- Create setup/installation guides
+
+## Development Workflow
+1. Start with backend API development
+2. Create database schema and models
+3. Implement prediction logic
+4. Build frontend components
+5. Integrate frontend with backend
+6. Add error handling and validation
+7. Test thoroughly
+8. Optimize and refactor
+
+## File Naming Conventions
+- Backend: snake_case for files, PascalCase for structs
+- Frontend: kebab-case for components, camelCase for variables
+- Use descriptive names that indicate purpose
+- Group related files in appropriate directories
+description:
+globs:
+alwaysApply: false
+---

@@ -1,0 +1,98 @@
+# Backend (Go) Rules
+
+## Architecture & Structure
+- Use clean architecture principles with clear separation of concerns
+- Follow Go project layout: `cmd/`, `internal/`, `pkg/` structure
+- Keep main.go minimal - only initialization and server startup
+- Use dependency injection for services and handlers
+- Organize code into layers: handlers, services, repositories, models
+
+## Database & Models
+- Use SQLite with GORM for ORM
+- Create models for: User, DailyRecord, WeatherData, Prediction
+- DailyRecord should include: date, shower_duration, user_rating, predicted_heating_time, actual_heating_time
+- WeatherData should include: date, temperature, humidity, daylight_hours (fake data for now)
+- Use proper database migrations with GORM AutoMigrate
+- Implement repository pattern for database operations
+
+## API Design
+- RESTful endpoints following Go conventions
+- Use chi router for routing
+- Implement proper HTTP status codes and error handling
+- Use JSON for request/response bodies
+- Endpoints needed:
+  - POST /api/records - Create daily record
+  - GET /api/records - Get all records
+  - GET /api/records/{date} - Get specific day
+  - GET /api/prediction - Get next day prediction
+  - PUT /api/records/{date} - Update record
+- Use middleware for CORS, logging, and error handling
+
+## Prediction Logic
+- Start with simple linear regression model
+- Consider factors: shower_duration, user_rating, weather_temp, daylight_hours
+- Store prediction accuracy metrics for model improvement
+- Use Go's math/rand for consistent fake weather data
+- Implement prediction service with interface for easy testing
+
+## Code Quality
+- Use Go modules (go.mod)
+- Follow Go naming conventions
+- Add proper error handling and logging
+- Use context for request cancellation
+- Add input validation for all endpoints
+- Write unit tests for business logic
+- Use godoc comments for public functions
+- Use interfaces for dependency injection
+
+## Dependencies
+- chi/router for routing
+- gorm.io/gorm for database
+- gorm.io/driver/sqlite for SQLite
+- encoding/json for JSON handling
+- time package for date handling
+- github.com/go-playground/validator for input validation
+
+## File Structure
+```
+backend/
+├── cmd/
+│   └── server/
+│       └── main.go
+├── internal/
+│   ├── handler/
+│   │   ├── record_handler.go
+│   │   └── prediction_handler.go
+│   ├── service/
+│   │   ├── record_service.go
+│   │   ├── prediction_service.go
+│   │   └── weather_service.go
+│   ├── repository/
+│   │   ├── record_repository.go
+│   │   └── weather_repository.go
+│   ├── model/
+│   │   ├── record.go
+│   │   ├── weather.go
+│   │   └── prediction.go
+│   └── routes/
+│       └── router.go
+└── pkg/
+    └── database/
+        └── database.go
+```
+
+## Error Handling
+- Use custom error types for different error scenarios
+- Implement proper HTTP error responses
+- Log errors with appropriate levels
+- Return meaningful error messages to clients
+
+## Testing
+- Write unit tests for all services and repositories
+- Use table-driven tests for multiple scenarios
+- Mock dependencies for isolated testing
+- Test both success and error cases
+description:
+globs:
+alwaysApply: false
+---

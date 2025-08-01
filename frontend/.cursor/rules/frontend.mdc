@@ -1,0 +1,121 @@
+# Frontend (Vue 3) Rules
+
+## Architecture & Structure
+- Use Vue 3 Options API (traditional export default pattern)
+- Follow Vue 3 best practices and conventions
+- Use Pinia for state management
+- Organize components by feature/domain
+- Keep components small and focused
+- Use TypeScript-like JSDoc comments for type safety
+
+## Component Structure
+- Create reusable components: InputForm, HistoryList, PredictionDisplay, WeatherDisplay
+- Use props for component communication
+- Emit events for parent-child communication
+- Use provide/inject sparingly, prefer props/emits
+- Keep components single-responsibility
+- Use mixins or utility functions for reusable logic
+
+## State Management
+- Use Pinia stores for global state
+- Create stores for: records, predictions, weather
+- Keep component state local when possible
+- Use data() and computed properties appropriately
+- Implement proper state persistence if needed
+
+## API Integration
+- Create API service layer in plugins/api.js
+- Use axios or fetch for HTTP requests
+- Handle loading states and error states
+- Implement proper error handling and user feedback
+- Use interceptors for common request/response handling
+
+## UI/UX Guidelines
+- Use modern, clean design with good contrast
+- Implement responsive design (mobile-first)
+- Use consistent spacing and typography
+- Add loading indicators and error messages
+- Use form validation for user inputs
+- Implement smooth transitions and animations
+- Follow accessibility best practices
+
+## Data Flow
+- Forms should validate input before submission
+- Show real-time feedback for user actions
+- Update predictions immediately after rating submission
+- Display historical data in an easy-to-read format
+- Use optimistic updates where appropriate
+
+## Styling
+- Use SCSS for styling
+- Follow BEM methodology for CSS classes
+- Use CSS custom properties for theming
+- Implement dark/light mode support
+- Use flexbox/grid for layouts
+- Keep styles modular and reusable
+
+## Dependencies
+- Vue 3 with Options API
+- Pinia for state management
+- Vite for build tool
+- SCSS for styling
+- Axios for API calls
+- Vue Router for navigation (if needed)
+
+## File Structure
+```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── InputForm.vue
+│   │   ├── HistoryList.vue
+│   │   ├── PredictionDisplay.vue
+│   │   └── WeatherDisplay.vue
+│   ├── stores/
+│   │   ├── records.js
+│   │   ├── predictions.js
+│   │   └── weather.js
+│   ├── plugins/
+│   │   └── api.js
+│   ├── composables/
+│   │   ├── useRecords.js
+│   │   └── usePredictions.js
+│   ├── styles/
+│   │   ├── main.scss
+│   │   ├── variables.scss
+│   │   └── components/
+│   └── App.vue
+```
+
+## Component Guidelines
+- Use Options API with export default pattern
+- Define props with proper validation
+- Emit events with typed payloads
+- Use computed properties for derived state
+- Implement proper lifecycle hooks
+- Use teleport for modals if needed
+
+## Form Handling
+- Use v-model for form inputs
+- Implement proper validation
+- Show validation errors clearly
+- Use debouncing for real-time validation
+- Handle form submission properly
+
+## Error Handling
+- Implement global error handling
+- Show user-friendly error messages
+- Log errors for debugging
+- Handle network errors gracefully
+- Provide retry mechanisms
+
+## Performance
+- Use lazy loading for components
+- Implement proper caching strategies
+- Optimize bundle size
+- Use virtual scrolling for large lists
+- Minimize re-renders with proper data properties and computed values
+description:
+globs:
+alwaysApply: false
+---
