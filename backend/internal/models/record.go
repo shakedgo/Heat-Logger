@@ -10,6 +10,7 @@ import (
 // DailyRecord represents a daily heating record with user feedback
 type DailyRecord struct {
 	ID                 string    `json:"id" gorm:"primaryKey;type:varchar(36)"`
+	UserID             string    `json:"userId" gorm:"not null;default:'global';index"`
 	Date               time.Time `json:"date" gorm:"not null"`
 	ShowerDuration     float64   `json:"showerDuration" gorm:"not null"`
 	AverageTemperature float64   `json:"averageTemperature" gorm:"not null"`

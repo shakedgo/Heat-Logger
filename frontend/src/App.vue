@@ -40,16 +40,24 @@ export default {
   methods: {
     async handleCalculate(data) {
       try {
+        console.log('Sending prediction request:', data);
         const response = await this.$api.post('/calculate', data);
+        console.log('Received prediction response:', response.data);
         this.latestHeatingTime = response.data.heatingTime;
       } catch (error) {
         console.error('Error:', error);
-        alert('An error occurred while calculating. Please try again.');
+        if (error.response && error.response.data && error.response.data.error) {
+          alert(`Error: ${error.response.data.error}`);
+        } else {
+          alert('An error occurred while calculating. Please try again.');
+        }
       }
     },
     async handleSubmit(data) {
       try {
+        console.log('Sending feedback:', data);
         const response = await this.$api.post('/feedback', data);
+        console.log('Feedback response:', response.data);
         if (response.status === 200) {
           await this.loadHistory();
           this.latestHeatingTime = null;
@@ -58,7 +66,11 @@ export default {
         }
       } catch (error) {
         console.error('Error:', error);
-        alert('An error occurred while saving feedback. Please try again.');
+        if (error.response && error.response.data && error.response.data.error) {
+          alert(`Error: ${error.response.data.error}`);
+        } else {
+          alert('An error occurred while saving feedback. Please try again.');
+        }
       }
     },
     async loadHistory() {

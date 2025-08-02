@@ -31,7 +31,28 @@ func InitDatabase() error {
 		return err
 	}
 
+	// Migrate existing records to have 'global' as default UserID
+	err = migrateExistingRecords()
+	if err != nil {
+		log.Printf("Warning: Failed to migrate existing records: %v", err)
+	}
+
 	log.Println("Database initialized successfully")
+	return nil
+}
+
+// migrateExistingRecords updates existing records without UserID to use 'global'
+func migrateExistingRecords() error {
+	// Update any records that have empty or null UserID to 'global'
+	result := DB.Model(&models.DailyRecord{}).Where("user_id = '' OR user_id IS NULL").Update("user_id", "global")
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected > 0 {
+		log.Printf("Migrated %d existing records to use 'global' UserID", result.RowsAffected)
+	}
+
 	return nil
 }
 

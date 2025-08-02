@@ -74,3 +74,21 @@ func (s *RecordService) GetRecordsForPrediction(limit int) ([]models.DailyRecord
 	err := s.db.Order("date DESC").Limit(limit).Find(&records).Error
 	return records, err
 }
+
+// GetRecordsForPredictionByUser retrieves recent records for a specific user for ML prediction
+func (s *RecordService) GetRecordsForPredictionByUser(userID string, limit int) ([]models.DailyRecord, error) {
+	var records []models.DailyRecord
+	err := s.db.Where("user_id = ?", userID).Order("date DESC").Limit(limit).Find(&records).Error
+	return records, err
+}
+
+// GetGlobalRecordsForPrediction retrieves recent global records (excluding specific user) for ML prediction
+func (s *RecordService) GetGlobalRecordsForPrediction(excludeUserID string, limit int) ([]models.DailyRecord, error) {
+	var records []models.DailyRecord
+	query := s.db.Order("date DESC").Limit(limit)
+	if excludeUserID != "" {
+		query = query.Where("user_id != ?", excludeUserID)
+	}
+	err := query.Find(&records).Error
+	return records, err
+}

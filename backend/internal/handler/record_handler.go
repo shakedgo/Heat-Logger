@@ -52,6 +52,14 @@ func (h *RecordHandler) CalculateHeatingTime(c *gin.Context) {
 		return
 	}
 
+	// Validate UserID
+	if req.UserID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "UserID is required",
+		})
+		return
+	}
+
 	// Get prediction
 	prediction, err := h.predictionService.PredictHeatingTime(&req)
 	if err != nil {
@@ -76,6 +84,13 @@ func (h *RecordHandler) SubmitFeedback(c *gin.Context) {
 	}
 
 	// Validate required fields
+	if record.UserID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "UserID is required",
+		})
+		return
+	}
+
 	if record.ShowerDuration <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Shower duration must be greater than 0",

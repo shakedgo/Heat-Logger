@@ -7,9 +7,16 @@ import (
 	"heat-logger/internal/models"
 )
 
+// RecordServiceInterface defines the interface for record service operations needed by prediction service
+type RecordServiceInterface interface {
+	GetRecordsForPredictionByUser(userID string, limit int) ([]models.DailyRecord, error)
+	GetGlobalRecordsForPrediction(excludeUserID string, limit int) ([]models.DailyRecord, error)
+	GetRecordsForPrediction(limit int) ([]models.DailyRecord, error)
+}
+
 // PredictionService handles ML prediction logic
 type PredictionService struct {
-	recordService *RecordService
+	recordService RecordServiceInterface
 }
 
 // NewPredictionService creates a new prediction service instance
@@ -21,6 +28,7 @@ func NewPredictionService(recordService *RecordService) *PredictionService {
 
 // PredictionRequest represents the input for heating time prediction
 type PredictionRequest struct {
+	UserID      string  `json:"userId" binding:"required"`
 	Duration    float64 `json:"duration" binding:"required,min=1,max=60"`
 	Temperature float64 `json:"temperature" binding:"required,min=-50,max=50"`
 }
@@ -37,21 +45,22 @@ type SimilarRecord struct {
 	Weight     float64
 }
 
-// PredictHeatingTime calculates the optimal heating time based on input parameters
+// PredictHeatingTime calculates the optimal heating time using hybrid user/global model
 func (s *PredictionService) PredictHeatingTime(req *PredictionRequest) (*PredictionResponse, error) {
-	// Get recent records for learning
-	records, err := s.recordService.GetRecordsForPrediction(50) // Increased limit for better learning
+	// Get user-specific records
+	userRecords, err := s.recordService.GetRecordsForPredictionByUser(req.UserID, 50)
 	if err != nil {
 		return nil, err
 	}
 
-	// If no historical data, use default values
-	if len(records) == 0 {
-		return s.predictWithDefaults(req), nil
+	// Get global records (excluding this user to avoid duplication)
+	globalRecords, err := s.recordService.GetGlobalRecordsForPrediction(req.UserID, 50)
+	if err != nil {
+		return nil, err
 	}
 
-	// Calculate prediction using similarity-based learning
-	heatingTime := s.calculatePrediction(req, records)
+	// Calculate hybrid prediction
+	heatingTime := s.getCombinedPrediction(req, userRecords, globalRecords)
 
 	return &PredictionResponse{
 		HeatingTime: math.Round(heatingTime*10) / 10, // Round to 1 decimal place
@@ -77,6 +86,78 @@ func (s *PredictionService) predictWithDefaults(req *PredictionRequest) *Predict
 	}
 }
 
+// getCombinedPrediction combines user-specific and global predictions using weighted average
+func (s *PredictionService) getCombinedPrediction(req *PredictionRequest, userRecords, globalRecords []models.DailyRecord) float64 {
+	// Calculate user weight based on amount of relevant data
+	userWeight := s.calculateUserWeight(req, userRecords)
+	globalWeight := 1.0 - userWeight
+
+	// Calculate user-specific prediction
+	var userPrediction float64
+	if userWeight > 0 {
+		userPrediction = s.calculatePredictionFromRecords(req, userRecords)
+	}
+
+	// Calculate global prediction
+	globalPrediction := s.calculatePredictionFromRecords(req, globalRecords)
+
+	// If no user data, return global prediction
+	if userWeight == 0 {
+		return globalPrediction
+	}
+
+	// If no global data, return user prediction or defaults
+	if len(globalRecords) == 0 {
+		if userWeight > 0 {
+			return userPrediction
+		}
+		return s.predictWithDefaults(req).HeatingTime
+	}
+
+	// Combine predictions using weighted average
+	finalPrediction := (userPrediction * userWeight) + (globalPrediction * globalWeight)
+
+	// Ensure the prediction is within reasonable bounds
+	if finalPrediction < 2.0 {
+		return 2.0
+	}
+	if finalPrediction > 30.0 {
+		return 30.0
+	}
+
+	return finalPrediction
+}
+
+// calculateUserWeight determines how much weight to give to user-specific data
+func (s *PredictionService) calculateUserWeight(req *PredictionRequest, userRecords []models.DailyRecord) float64 {
+	// Count relevant user records (similar conditions)
+	relevantCount := 0
+	for _, record := range userRecords {
+		tempDiff := math.Abs(record.AverageTemperature - req.Temperature)
+		durationDiff := math.Abs(record.ShowerDuration - req.Duration)
+
+		// Count records with similar conditions
+		if tempDiff <= 2.0 && durationDiff <= 3.0 {
+			relevantCount++
+		}
+	}
+
+	// Weight increases with relevant records, max weight at 10 records
+	userWeight := math.Min(1.0, float64(relevantCount)/10.0)
+	return userWeight
+}
+
+// calculatePredictionFromRecords calculates prediction from a set of records
+func (s *PredictionService) calculatePredictionFromRecords(req *PredictionRequest, records []models.DailyRecord) float64 {
+	// If no records, use defaults
+	if len(records) == 0 {
+		return s.predictWithDefaults(req).HeatingTime
+	}
+
+	// Use the existing prediction logic
+	return s.calculatePrediction(req, records)
+}
+
 // calculatePrediction uses a target-based approach to find the optimal heating time.
 // It calculates a "target time" for each similar record and averages them.
 func (s *PredictionService) calculatePrediction(req *PredictionRequest, records []models.DailyRecord) float64 {
@@ -99,15 +180,30 @@ func (s *PredictionService) calculatePrediction(req *PredictionRequest, records 
 		}
 
 		// Calculate the adjustment needed based on user satisfaction.
+		// Use relative adjustment (percentage of heating time) with enhanced responsiveness to extreme scores
 		var adjustment float64
 		if record.Satisfaction < 50.0 {
 			// User was cold, so we need to increase the time.
 			coldnessFactor := (50.0 - record.Satisfaction) / 49.0 // 0-1 scale
-			adjustment = coldnessFactor * 4.0                     // Max +4 mins
+
+			// Enhanced non-linear curve for more aggressive adjustment when very dissatisfied
+			// Use power of 2.0 for more aggressive response to extreme scores
+			nonLinearFactor := math.Pow(coldnessFactor, 2.0)
+
+			// Increased max adjustment for extreme scores: up to 40% for very cold feedback
+			maxAdjustmentPercent := 0.25 + (coldnessFactor * 0.15) // 25% to 40% based on severity
+			adjustment = nonLinearFactor * (record.HeatingTime * maxAdjustmentPercent)
 		} else if record.Satisfaction > 50.0 {
 			// User was hot, so we need to decrease the time.
 			hotnessFactor := (record.Satisfaction - 50.0) / 50.0 // 0-1 scale
-			adjustment = -hotnessFactor * 4.0                    // Max -4 mins
+
+			// Enhanced non-linear curve for more aggressive adjustment when very dissatisfied
+			// Use power of 2.0 for more aggressive response to extreme scores
+			nonLinearFactor := math.Pow(hotnessFactor, 2.0)
+
+			// Increased max adjustment for extreme scores: up to 40% for very hot feedback
+			maxAdjustmentPercent := 0.25 + (hotnessFactor * 0.15) // 25% to 40% based on severity
+			adjustment = -nonLinearFactor * (record.HeatingTime * maxAdjustmentPercent)
 		}
 
 		// The new target is the actual time from the record, plus the adjustment.

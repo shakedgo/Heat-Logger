@@ -3,6 +3,18 @@
     <h2>Enter Today's Data</h2>
     <form @submit.prevent="handleCalculate" v-if="!currentEntry">
       <div class="form-group">
+        <label for="userId">User ID:</label>
+        <input 
+          type="text" 
+          id="userId" 
+          v-model="formData.userId" 
+          required 
+          placeholder="Enter your user ID (e.g., user1)"
+        >
+        <small>This helps personalize predictions for you</small>
+      </div>
+      
+      <div class="form-group">
         <label for="temperature">Average Temperature (°C):</label>
         <input 
           type="number" 
@@ -57,8 +69,6 @@
 </template>
 
 <script>
-import { v4 as uuidv4 } from 'uuid';
-
 export default {
   name: 'InputForm',
   props: {
@@ -70,6 +80,7 @@ export default {
   data() {
     return {
       formData: {
+        userId: localStorage.getItem('heatLogger_userId') || '',
         averageTemperature: '',
         showerDuration: '',
         satisfaction: ''
@@ -79,14 +90,18 @@ export default {
   },
   methods: {
     handleCalculate() {
+      // Save userId to localStorage for future use
+      localStorage.setItem('heatLogger_userId', this.formData.userId);
+      
       const data = {
+        userId: this.formData.userId,
         duration: parseFloat(this.formData.showerDuration),
         temperature: parseFloat(this.formData.averageTemperature)
       };
 
       this.$emit('calculate', data);
       this.currentEntry = {
-        id: uuidv4(),
+        userId: this.formData.userId,
         date: new Date().toISOString(),
         averageTemperature: parseFloat(this.formData.averageTemperature),
         showerDuration: parseFloat(this.formData.showerDuration)
@@ -108,7 +123,10 @@ export default {
       this.resetForm();
     },
     resetForm() {
+      // Preserve userId when resetting form
+      const savedUserId = this.formData.userId;
       this.formData = {
+        userId: savedUserId,
         averageTemperature: '',
         showerDuration: '',
         satisfaction: ''

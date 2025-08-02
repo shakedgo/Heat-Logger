@@ -122,5 +122,5 @@ The algorithm has been extensively tested and shows:
 - **Future**: Ready for weather integration and advanced ML models
 description:
 globs:
-alwaysApply: false
+alwaysApply: true
 ---
