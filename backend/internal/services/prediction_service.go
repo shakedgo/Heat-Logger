@@ -69,10 +69,10 @@ func (s *PredictionService) PredictHeatingTime(req *PredictionRequest) (*Predict
 
 // predictWithDefaults returns a prediction using default values when no historical data exists
 func (s *PredictionService) predictWithDefaults(req *PredictionRequest) *PredictionResponse {
-	// Base heating time calculation with default factors
-	baseTime := 8.0       // Base heating time in minutes
-	durationFactor := 0.3 // Minutes per minute of shower
-	tempFactor := -0.1    // Minutes per degree Celsius (negative because higher temp = less heating needed)
+	// Base heating time calculation with improved default factors
+	baseTime := 12.0      // Increased base heating time (was 8.0)
+	durationFactor := 0.4 // More time per minute of shower (was 0.3)
+	tempFactor := -0.15   // More temperature sensitivity (was -0.1)
 
 	heatingTime := baseTime + (req.Duration * durationFactor) + (req.Temperature * tempFactor)
 
@@ -179,31 +179,32 @@ func (s *PredictionService) calculatePrediction(req *PredictionRequest, records 
 			weight *= decay
 		}
 
-		// Calculate the adjustment needed based on user satisfaction.
-		// Use relative adjustment (percentage of heating time) with enhanced responsiveness to extreme scores
+		// Calculate the adjustment needed based on user satisfaction using 2x² scaling
 		var adjustment float64
-		if record.Satisfaction < 50.0 {
-			// User was cold, so we need to increase the time.
-			coldnessFactor := (50.0 - record.Satisfaction) / 49.0 // 0-1 scale
+		if record.Satisfaction != 50.0 {
+			// Calculate distance from perfect satisfaction
+			x := record.Satisfaction - 50.0
+			normalizedX := x / 50.0
 
-			// Enhanced non-linear curve for more aggressive adjustment when very dissatisfied
-			// Use power of 2.0 for more aggressive response to extreme scores
-			nonLinearFactor := math.Pow(coldnessFactor, 2.0)
+			// Apply 2x² scaling: f(x) = 2x² for more aggressive learning
+			quadraticFactor := 2.0 * math.Pow(math.Abs(normalizedX), 2.0)
 
-			// Increased max adjustment for extreme scores: up to 40% for very cold feedback
-			maxAdjustmentPercent := 0.25 + (coldnessFactor * 0.15) // 25% to 40% based on severity
-			adjustment = nonLinearFactor * (record.HeatingTime * maxAdjustmentPercent)
-		} else if record.Satisfaction > 50.0 {
-			// User was hot, so we need to decrease the time.
-			hotnessFactor := (record.Satisfaction - 50.0) / 50.0 // 0-1 scale
+			// Increased base adjustment percentage for more aggressive learning
+			baseAdjustmentPercent := 1.2 // Increased from 0.8 (50% more aggressive)
 
-			// Enhanced non-linear curve for more aggressive adjustment when very dissatisfied
-			// Use power of 2.0 for more aggressive response to extreme scores
-			nonLinearFactor := math.Pow(hotnessFactor, 2.0)
+			// Apply pattern recognition boost
+			coldBoost, hotBoost := s.detectExtremeFeedbackPattern(records)
 
-			// Increased max adjustment for extreme scores: up to 40% for very hot feedback
-			maxAdjustmentPercent := 0.25 + (hotnessFactor * 0.15) // 25% to 40% based on severity
-			adjustment = -nonLinearFactor * (record.HeatingTime * maxAdjustmentPercent)
+			// Apply contextual learning boost based on progression
+			contextualBoost := s.calculateContextualBoost(records, record.Satisfaction, x < 0)
+
+			if x < 0 {
+				// Cold feedback - increase heating time
+				adjustment = quadraticFactor * (record.HeatingTime * baseAdjustmentPercent) * coldBoost * contextualBoost
+			} else {
+				// Hot feedback - decrease heating time
+				adjustment = -quadraticFactor * (record.HeatingTime * baseAdjustmentPercent) * hotBoost * contextualBoost
+			}
 		}
 
 		// The new target is the actual time from the record, plus the adjustment.
@@ -227,6 +228,171 @@ func (s *PredictionService) calculatePrediction(req *PredictionRequest, records 
 	}
 
 	return s.predictWithDefaults(req).HeatingTime
+}
+
+// detectExtremeFeedbackPattern detects consecutive extreme feedback patterns and returns boost factors
+func (s *PredictionService) detectExtremeFeedbackPattern(records []models.DailyRecord) (float64, float64) {
+	var consecutiveCold, consecutiveHot int
+	var coldBoost, hotBoost float64 = 1.0, 1.0
+
+	// Count consecutive extreme feedback (most recent first)
+	for i := len(records) - 1; i >= 0; i-- {
+		record := records[i]
+
+		if record.Satisfaction < 30.0 {
+			consecutiveCold++
+			consecutiveHot = 0
+		} else if record.Satisfaction > 70.0 {
+			consecutiveHot++
+			consecutiveCold = 0
+		} else {
+			// Reset counters for moderate feedback
+			consecutiveCold = 0
+			consecutiveHot = 0
+		}
+
+		// Apply pattern-based boost
+		if consecutiveCold >= 3 {
+			coldBoost = 1.5 + (float64(consecutiveCold) * 0.2) // 1.5x to 2.5x boost
+		}
+		if consecutiveHot >= 3 {
+			hotBoost = 1.5 + (float64(consecutiveHot) * 0.2) // 1.5x to 2.5x boost
+		}
+	}
+
+	return coldBoost, hotBoost
+}
+
+// calculateContextualBoost analyzes the learning progression to determine if we need more aggressive adjustments
+func (s *PredictionService) calculateContextualBoost(records []models.DailyRecord, currentSatisfaction float64, isCold bool) float64 {
+	if len(records) < 2 {
+		return 1.0 // Not enough history for contextual analysis
+	}
+
+	// Get the last 3 records for progression analysis
+	recentRecords := s.getRecentRecords(records, 3)
+	if len(recentRecords) < 2 {
+		return 1.0
+	}
+
+	// Analyze satisfaction progression
+	var contextualBoost float64 = 1.0
+
+	if isCold {
+		// For cold feedback, check if satisfaction is improving or still low
+		contextualBoost = s.analyzeColdProgression(recentRecords, currentSatisfaction)
+	} else {
+		// For hot feedback, check if satisfaction is improving or still high
+		contextualBoost = s.analyzeHotProgression(recentRecords, currentSatisfaction)
+	}
+
+	return contextualBoost
+}
+
+// analyzeColdProgression determines if we need more aggressive heating adjustments
+func (s *PredictionService) analyzeColdProgression(recentRecords []models.DailyRecord, currentSatisfaction float64) float64 {
+	// If current satisfaction is still very low (< 40), we need to be more aggressive
+	if currentSatisfaction < 40.0 {
+		// Check if this is a pattern of low satisfaction
+		lowSatisfactionCount := 0
+		for _, record := range recentRecords {
+			if record.Satisfaction < 40.0 {
+				lowSatisfactionCount++
+			}
+		}
+
+		// If we have multiple low satisfaction records, be more aggressive
+		if lowSatisfactionCount >= 2 {
+			// Calculate how much we've been adjusting
+			adjustmentAggressiveness := s.calculateAdjustmentAggressiveness(recentRecords)
+
+			// If we've been conservative, be more aggressive
+			if adjustmentAggressiveness < 0.3 {
+				return 3.0 // Triple the adjustment (increased from 2.0)
+			} else if adjustmentAggressiveness < 0.5 {
+				return 2.0 // Double the adjustment (increased from 1.5)
+			}
+		}
+
+		// If satisfaction is extremely low (< 30), always be more aggressive
+		if currentSatisfaction < 30.0 {
+			return 2.5 // Increased from 1.8
+		}
+	}
+
+	return 1.0
+}
+
+// analyzeHotProgression determines if we need more aggressive cooling adjustments
+func (s *PredictionService) analyzeHotProgression(recentRecords []models.DailyRecord, currentSatisfaction float64) float64 {
+	// If current satisfaction is still very high (> 60), we need to be more aggressive
+	if currentSatisfaction > 60.0 {
+		// Check if this is a pattern of high satisfaction
+		highSatisfactionCount := 0
+		for _, record := range recentRecords {
+			if record.Satisfaction > 60.0 {
+				highSatisfactionCount++
+			}
+		}
+
+		// If we have multiple high satisfaction records, be more aggressive
+		if highSatisfactionCount >= 2 {
+			// Calculate how much we've been adjusting
+			adjustmentAggressiveness := s.calculateAdjustmentAggressiveness(recentRecords)
+
+			// If we've been conservative, be more aggressive
+			if adjustmentAggressiveness < 0.3 {
+				return 3.0 // Triple the adjustment (increased from 2.0)
+			} else if adjustmentAggressiveness < 0.5 {
+				return 2.0 // Double the adjustment (increased from 1.5)
+			}
+		}
+
+		// If satisfaction is extremely high (> 70), always be more aggressive
+		if currentSatisfaction > 70.0 {
+			return 2.5 // Increased from 1.8
+		}
+	}
+
+	return 1.0
+}
+
+// calculateAdjustmentAggressiveness measures how aggressively we've been adjusting
+func (s *PredictionService) calculateAdjustmentAggressiveness(records []models.DailyRecord) float64 {
+	if len(records) < 2 {
+		return 0.0
+	}
+
+	var totalAdjustmentPercent float64
+	var adjustmentCount int
+
+	for i := 1; i < len(records); i++ {
+		current := records[i]
+		previous := records[i-1]
+
+		// Calculate percentage change in heating time
+		if previous.HeatingTime > 0 {
+			adjustmentPercent := math.Abs(current.HeatingTime-previous.HeatingTime) / previous.HeatingTime
+			totalAdjustmentPercent += adjustmentPercent
+			adjustmentCount++
+		}
+	}
+
+	if adjustmentCount > 0 {
+		return totalAdjustmentPercent / float64(adjustmentCount)
+	}
+
+	return 0.0
+}
+
+// getRecentRecords returns the most recent N records
+func (s *PredictionService) getRecentRecords(records []models.DailyRecord, count int) []models.DailyRecord {
+	if len(records) <= count {
+		return records
+	}
+
+	// Return the most recent records (they're already sorted by date)
+	return records[len(records)-count:]
 }
 
 // findSimilarRecords finds records with similar temperature and duration

@@ -1,7 +1,7 @@
 # Backend (Go) - Heat-Logger
 
 ## Overview
-The backend is a Go application using Gin framework with an advanced machine learning prediction system for heating time optimization.
+The backend is a Go application using Gin framework with an advanced heuristic-based prediction system for heating time optimization.
 
 ## Current State: Production Ready ✅
 
@@ -15,12 +15,15 @@ The backend is a Go application using Gin framework with an advanced machine lea
 ## Key Components
 
 ### 1. Prediction Service (`internal/services/prediction_service.go`)
-**Advanced ML Algorithm with the following features:**
+**Advanced Heuristic-Based Algorithm with the following features:**
 
 #### Core Algorithm
 - **Target-based prediction**: Calculates target times from historical records
 - **Similarity matching**: Finds records within ±2°C temperature and ±3 minutes duration
 - **Weighted learning**: Considers recency (2x weight), similarity, and frequency
+- **Quadratic scaling**: Uses x² function centered at satisfaction=50 for natural learning curve
+- **Pattern recognition**: Detects consecutive extreme feedback for enhanced learning
+- **Heuristic-based adjustments**: Rule-based system with mathematical formulas for learning
 
 #### Perfect Score Handling
 - **Perfect score attraction**: Gives extra weight to satisfaction=50 results
@@ -29,16 +32,24 @@ The backend is a Go application using Gin framework with an advanced machine lea
 
 #### Learning Logic
 ```go
-// For cold feedback (satisfaction < 50)
-coldnessFactor := (50.0 - record.Satisfaction) / 49.0
-adjustment = coldnessFactor * 4.0 // Max +4 minutes
+// Quadratic scaling centered at satisfaction=50
+x := record.Satisfaction - 50.0
+normalizedX := x / 50.0
+quadraticFactor := math.Pow(math.Abs(normalizedX), 2.0)
 
-// For hot feedback (satisfaction > 50)  
-hotnessFactor := (record.Satisfaction - 50.0) / 50.0
-adjustment = -hotnessFactor * 4.0 // Max -4 minutes
+// Pattern recognition for consecutive extreme feedback
+if consecutiveCold >= 3 {
+    coldBoost = 1.5 + (consecutiveCold * 0.2) // 1.5x to 2.5x boost
+}
 
-// Target time calculation
-targetTime := record.HeatingTime + adjustment
+// Adjustment calculation
+if x < 0 {
+    // Cold feedback - increase heating time
+    adjustment = quadraticFactor * (heatingTime * 0.8) * coldBoost
+} else {
+    // Hot feedback - decrease heating time
+    adjustment = -quadraticFactor * (heatingTime * 0.8) * hotBoost
+}
 ```
 
 ### 2. Record Service (`internal/services/record_service.go`)

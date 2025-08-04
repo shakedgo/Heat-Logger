@@ -13,6 +13,7 @@ import (
 // MockRecordService is a mock implementation of RecordServiceInterface for testing
 type MockRecordService struct {
 	mock.Mock
+	records []models.DailyRecord
 }
 
 func (m *MockRecordService) GetRecordsForPredictionByUser(userID string, limit int) ([]models.DailyRecord, error) {
@@ -306,4 +307,125 @@ func TestCalculateUserWeight(t *testing.T) {
 			assert.Equal(t, tc.expectedWeight, weight)
 		})
 	}
+}
+
+func TestQuadraticScalingAndPatternRecognition(t *testing.T) {
+	// Create a mock record service
+	mockRecordService := &MockRecordService{}
+
+	// Mock user records with consecutive cold feedback
+	userRecords := []models.DailyRecord{
+		{
+			ID:                 "1",
+			UserID:             "user1",
+			Date:               time.Now().Add(-24 * time.Hour),
+			ShowerDuration:     20.0,
+			AverageTemperature: 22.0,
+			HeatingTime:        10.0,
+			Satisfaction:       20.0, // Very cold
+		},
+		{
+			ID:                 "2",
+			UserID:             "user1",
+			Date:               time.Now().Add(-48 * time.Hour),
+			ShowerDuration:     20.0,
+			AverageTemperature: 22.0,
+			HeatingTime:        9.0,
+			Satisfaction:       25.0, // Cold
+		},
+		{
+			ID:                 "3",
+			UserID:             "user1",
+			Date:               time.Now().Add(-72 * time.Hour),
+			ShowerDuration:     20.0,
+			AverageTemperature: 22.0,
+			HeatingTime:        8.0,
+			Satisfaction:       30.0, // Cold
+		},
+	}
+
+	// Set up mock expectations
+	mockRecordService.On("GetRecordsForPredictionByUser", "user1", 50).Return(userRecords, nil)
+	mockRecordService.On("GetGlobalRecordsForPrediction", "user1", 50).Return([]models.DailyRecord{}, nil)
+
+	predictionService := &PredictionService{recordService: mockRecordService}
+
+	req := &PredictionRequest{
+		UserID:      "user1",
+		Duration:    20.0,
+		Temperature: 22.0,
+	}
+
+	response, err := predictionService.PredictHeatingTime(req)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// With quadratic scaling and pattern recognition, we should see an increase
+	// from the base heating time due to consecutive cold feedback
+	expectedMin := 10.5 // Should be higher than the last record (10.0)
+	if response.HeatingTime < expectedMin {
+		t.Errorf("Expected heating time >= %f due to quadratic scaling and pattern recognition, got %f", expectedMin, response.HeatingTime)
+	}
+
+	t.Logf("Quadratic scaling result: %f minutes (expected >= %f)", response.HeatingTime, expectedMin)
+
+	// Verify mock expectations
+	mockRecordService.AssertExpectations(t)
+}
+
+func TestContextualLearningProgression(t *testing.T) {
+	// Create a mock record service
+	mockRecordService := &MockRecordService{}
+
+	// Mock user records showing progression: 25 -> 30 (still cold after adjustment)
+	userRecords := []models.DailyRecord{
+		{
+			ID:                 "progression3",
+			UserID:             "user3",
+			Date:               time.Now().Add(-24 * time.Hour),
+			ShowerDuration:     20.0,
+			AverageTemperature: 22.0,
+			HeatingTime:        16.0, // Increased from 14.0
+			Satisfaction:       30.0, // Still cold after previous adjustment
+		},
+		{
+			ID:                 "progression2",
+			UserID:             "user3",
+			Date:               time.Now().Add(-48 * time.Hour),
+			ShowerDuration:     20.0,
+			AverageTemperature: 22.0,
+			HeatingTime:        14.0,
+			Satisfaction:       25.0, // Cold feedback
+		},
+	}
+
+	// Set up mock expectations
+	mockRecordService.On("GetRecordsForPredictionByUser", "user3", 50).Return(userRecords, nil)
+	mockRecordService.On("GetGlobalRecordsForPrediction", "user3", 50).Return([]models.DailyRecord{}, nil)
+
+	predictionService := &PredictionService{recordService: mockRecordService}
+
+	req := &PredictionRequest{
+		UserID:      "user3",
+		Duration:    20.0,
+		Temperature: 22.0,
+	}
+
+	response, err := predictionService.PredictHeatingTime(req)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// With contextual learning, we should see a more aggressive increase
+	// because the user is still cold after previous adjustments
+	expectedMin := 18.0 // Should be significantly higher due to contextual boost
+	if response.HeatingTime < expectedMin {
+		t.Errorf("Expected heating time >= %f due to contextual learning, got %f", expectedMin, response.HeatingTime)
+	}
+
+	t.Logf("Contextual learning result: %f minutes (expected >= %f)", response.HeatingTime, expectedMin)
+
+	// Verify mock expectations
+	mockRecordService.AssertExpectations(t)
 }
