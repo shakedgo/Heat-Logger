@@ -1,13 +1,18 @@
 <template>
-  <div class="container">
-    <h1>Water Heater Learning System</h1>
+  <div class="container app-shell">
+    <header class="app-header">
+      <div class="brand">
+        <span class="logo">🔥</span>
+        <h1>Heat Logger</h1>
+      </div>
+      <p class="subtitle">Smarter water heater timings, based on you</p>
+    </header>
     <div class="content">
       <InputForm 
         @calculate="handleCalculate" 
         @submitFeedback="handleSubmit"
         :latestHeatingTime="latestHeatingTime"
       />
-      <LatestResult :heatingTime="latestHeatingTime" />
       <div class="history-section">
         <HistoryList 
           :history="history"
@@ -15,21 +20,22 @@
           @deleteAll="handleDeleteAll"
         />
       </div>
+      <UiToaster />
     </div>
   </div>
 </template>
 
 <script>
 import InputForm from './components/InputForm.vue'
-import LatestResult from './components/LatestResult.vue'
 import HistoryList from './components/HistoryList.vue'
+import UiToaster from './components/UiToaster.vue'
 
 export default {
   name: 'App',
   components: {
     InputForm,
-    LatestResult,
-    HistoryList
+    HistoryList,
+    UiToaster
   },
   data() {
     return {
@@ -116,20 +122,54 @@ export default {
 </script>
 
 <style lang="scss">
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
+.app-shell {
+  max-width: 1100px;
+}
 
-  h1 {
+.app-header {
+  & {
+    position: sticky;
+    top: 0;
+    z-index: 50;
     text-align: center;
-    color: #2c3e50;
+    margin-top: 12px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    backdrop-filter: blur(6px);
   }
 
-  .content {
-    display: grid;
-    gap: 20px;
-    margin-top: 20px;
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
   }
+
+  .logo { font-size: 28px; }
+
+  h1 { margin: 0; font-size: 28px; letter-spacing: 0.2px; color: var(--heading); }
+
+  .subtitle { margin: 6px 0 0 0; color: var(--muted); }
+
+  .brand > *:last-child { margin-left: 6px; }
+}
+
+.content {
+  display: grid;
+  gap: 20px;
+  margin-top: 12px;
+}
+
+@media (min-width: 940px) {
+  .content {
+    grid-template-columns: 0.9fr 1.1fr; // form slightly narrower than history
+    align-items: start;
+  }
+}
+
+[data-theme='dark'] {
+  body { background: #303134; color: #e4e4e7; }
+  .app-header h1 { color: #e7e7ea; }
+  .subtitle { color: #a1a1aa; }
 }
 </style> 

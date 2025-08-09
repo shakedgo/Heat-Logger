@@ -1,6 +1,6 @@
 <template>
-  <div class="input-form">
-    <h2>Enter Today's Data</h2>
+  <div class="input-form card">
+    <h2>{{ currentEntry ? 'Enter Feedback' : "Enter Today's Data" }}</h2>
     <form @submit.prevent="handleCalculate" v-if="!currentEntry">
       <div class="form-group">
         <label for="userId">User ID:</label>
@@ -21,7 +21,7 @@
           id="temperature" 
           v-model="formData.averageTemperature" 
           required 
-          step="0.1"
+          step="1"
         >
       </div>
       
@@ -32,7 +32,7 @@
           id="duration" 
           v-model="formData.showerDuration" 
           required 
-          step="0.5"
+          step="1"
         >
       </div>
       
@@ -41,9 +41,18 @@
 
     <form @submit.prevent="handleFeedback" v-if="currentEntry" class="feedback-form">
       <div class="current-values">
-        <p>Temperature: {{ currentEntry.averageTemperature }}°C</p>
-        <p>Duration: {{ currentEntry.showerDuration }} minutes</p>
-        <p>Suggested Heating Time: {{ currentEntry.heatingTime.toFixed(1) }} minutes</p>
+        <div class="cv-stats">
+          <p>Temperature: {{ currentEntry.averageTemperature }}°C</p>
+          <p>Duration: {{ currentEntry.showerDuration }} minutes</p>
+        </div>
+        <div class="cv-suggestion" v-if="currentEntry && currentEntry.heatingTime != null">
+          <div class="label">Suggested Heating Time</div>
+          <div class="value">{{ currentEntry.heatingTime.toFixed(1) }} minutes</div>
+        </div>
+        <div class="cv-suggestion pending" v-else>
+          <div class="label">Suggested Heating Time</div>
+          <div class="value">Calculating…</div>
+        </div>
       </div>
 
       <div class="form-group">
@@ -100,6 +109,7 @@ export default {
       };
 
       this.$emit('calculate', data);
+      this.$toast('Calculating heating time...', { type: 'info', duration: 1200 })
       this.currentEntry = {
         userId: this.formData.userId,
         date: new Date().toISOString(),
@@ -150,64 +160,72 @@ export default {
 <style lang="scss" scoped>
 .input-form {
   background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 
-  h2 {
-    margin-top: 0;
-    color: #2c3e50;
-  }
+  h2 { margin-top: 0; color: var(--heading); }
 }
 
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 14px;
 
-  label {
-    display: block;
-    margin-bottom: 5px;
-    color: #34495e;
-  }
+  label { display: block; margin-bottom: 6px; color: var(--text); opacity: 0.9; }
 
   input {
     width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
     font-size: 16px;
   }
 
-  small {
-    display: block;
-    color: #666;
-    margin-top: 5px;
-  }
+  small { display: block; color: var(--muted); margin-top: 5px; }
 }
 
 button {
-  background-color: #42b983;
+  background-color: #10b981;
   color: white;
-  padding: 10px 20px;
+  padding: 12px 16px;
   border: none;
-  border-radius: 4px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 16px;
   width: 100%;
 
   &:hover {
-    background-color: #3aa876;
+    background-color: #059669;
   }
 }
 
 .current-values {
   background: #f8f9fa;
-  padding: 15px;
-  border-radius: 4px;
+  padding: 16px;
+  border-radius: 12px;
   margin-bottom: 20px;
+  border: 1px solid #e5e7eb;
 
-  p {
-    margin: 5px 0;
-    color: #2c3e50;
+  .cv-stats p { margin: 4px 0; color: #334155; }
+
+  .cv-suggestion {
+    margin-top: 10px;
+    background: #ecfdf5; /* light emerald tint */
+    border: 1px solid #a7f3d0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+
+    .label { color: #065f46; font-weight: 600; }
+    .value { color: #065f46; font-weight: 700; font-size: 1.25rem; }
+  }
+
+  .cv-suggestion.pending {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    .label { color: #475569; }
+    .value { color: #475569; font-weight: 600; }
   }
 }
 
@@ -217,10 +235,10 @@ button {
   gap: 10px;
 
   .cancel-btn {
-    background-color: #dc3545;
+    background-color: #ef4444;
 
     &:hover {
-      background-color: #c82333;
+      background-color: #dc2626;
     }
   }
 }
@@ -228,4 +246,33 @@ button {
 .feedback-form {
   margin-top: 20px;
 }
+
+[data-theme='dark'] .input-form { background: #1f1f1f; }
+[data-theme='dark'] .input-form h2 { color: #f3f4f6; }
+[data-theme='dark'] .input-form label { color: #e5e7eb; }
+[data-theme='dark'] .input-form small { color: #a1a1aa; }
+[data-theme='dark'] .form-group label { color: #cbd5e1; }
+[data-theme='dark'] .form-group input {
+  background: #2a2a2a;
+  color: #f3f4f6;
+  border-color: #3a3a3a;
+}
+[data-theme='dark'] .form-group input::placeholder { color: #bdbdbd; }
+[data-theme='dark'] .current-values {
+  background: #2a2a2a; /* same as dark input bg */
+  border-color: #3a3a3a;
+}
+[data-theme='dark'] .current-values .cv-stats p { color: #e5e7eb; }
+[data-theme='dark'] .current-values .cv-suggestion {
+  background: #052e2b; /* dark emerald tint */
+  border-color: #0b4d45;
+  .label { color: #a7f3d0; }
+  .value { color: #34d399; }
+}
+[data-theme='dark'] .current-values .cv-suggestion.pending {
+  background: #2f3136;
+  border-color: #3a3a3a;
+  .label, .value { color: #cbd5e1; }
+}
+[data-theme='dark'] .button-group .cancel-btn { background-color: #dc2626; }
 </style> 

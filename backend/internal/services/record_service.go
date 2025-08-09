@@ -31,10 +31,11 @@ func (s *RecordService) CreateRecord(record *models.DailyRecord) error {
 	return s.db.Create(record).Error
 }
 
-// GetAllRecords retrieves all daily records, ordered by date descending
+// GetAllRecords retrieves all daily records, ordered by last update descending
 func (s *RecordService) GetAllRecords() ([]models.DailyRecord, error) {
 	var records []models.DailyRecord
-	err := s.db.Order("date DESC").Find(&records).Error
+	// Order by UpdatedAt to reflect most recently modified entries first
+	err := s.db.Order("updated_at DESC").Find(&records).Error
 	return records, err
 }
 
@@ -71,7 +72,7 @@ func (s *RecordService) DeleteAllRecords() error {
 // GetRecordsForPrediction retrieves recent records for ML prediction
 func (s *RecordService) GetRecordsForPrediction(limit int) ([]models.DailyRecord, error) {
 	var records []models.DailyRecord
-	err := s.db.Order("date DESC").Limit(limit).Find(&records).Error
+	err := s.db.Order("updated_at DESC").Limit(limit).Find(&records).Error
 	return records, err
 }
 

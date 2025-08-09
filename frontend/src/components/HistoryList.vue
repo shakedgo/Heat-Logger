@@ -1,5 +1,5 @@
 <template>
-  <div class="history-list">
+  <div class="history-list card">
     <div class="header">
       <h2>History</h2>
       <div class="actions">
@@ -11,7 +11,7 @@
         </button>
       </div>
     </div>
-    <div class="history-entries" v-if="history.length > 0">
+     <div class="history-entries" v-if="history.length > 0">
       <div v-for="entry in sortedHistory" :key="entry.id" class="history-entry">
         <div class="entry-date">
           {{ formatDate(entry.date) }}
@@ -46,7 +46,9 @@
       </div>
     </div>
     <div v-else class="no-history">
-      No history available yet.
+      <div class="illustration">🧼</div>
+      <div class="title">No history yet</div>
+      <div class="hint">Fill the form and calculate to start building your smart schedule.</div>
     </div>
   </div>
 </template>
@@ -72,7 +74,7 @@ export default {
         entry.date !== "0001-01-01T00:00:00Z" &&
         entry.satisfaction > 0
       );
-      return validEntries.reverse().slice(0, 10);
+      return validEntries;
     }
   },
   methods: {
@@ -84,15 +86,19 @@ export default {
       if (satisfaction > 60) return 'hot';
       return 'perfect';
     },
-    handleDelete(id) {
-      if (confirm('Are you sure you want to delete this record?')) {
-        this.$emit('delete', id);
-      }
+    async handleDelete(id) {
+      try {
+        await this.$confirm({ title: 'Delete record', message: 'Are you sure you want to delete this record?' })
+        this.$emit('delete', id)
+        this.$toast('Record deleted', { type: 'success' })
+      } catch (_) {}
     },
-    handleDeleteAll() {
-      if (confirm('Are you sure you want to delete all records? This cannot be undone.')) {
-        this.$emit('deleteAll');
-      }
+    async handleDeleteAll() {
+      try {
+        await this.$confirm({ title: 'Delete all', message: 'Delete all records? This cannot be undone.' })
+        this.$emit('deleteAll')
+        this.$toast('All records deleted', { type: 'success' })
+      } catch (_) {}
     },
     async exportHistory() {
       try {
@@ -125,11 +131,11 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.history-list {
+   .history-list {
   background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 
   .header {
     display: flex;
@@ -143,12 +149,12 @@ export default {
     gap: 1rem;
   }
 
-  .export-btn {
-    background-color: #4CAF50;
+   .export-btn {
+    background-color: #3b82f6;
     color: white;
     border: none;
     padding: 0.5rem 1rem;
-    border-radius: 4px;
+    border-radius: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -156,15 +162,15 @@ export default {
   }
 
   .export-btn:hover {
-    background-color: #45a049;
+    background-color: #2563eb;
   }
 
   .delete-all-btn {
-    background-color: #f44336;
+    background-color: #ef4444;
     color: white;
     border: none;
     padding: 0.5rem 1rem;
-    border-radius: 4px;
+    border-radius: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -172,12 +178,12 @@ export default {
   }
 
   .delete-all-btn:hover {
-    background-color: #da190b;
+    background-color: #dc2626;
   }
 
   .history-entries {
     & {
-      max-height: 400px;
+      max-height: 520px;
       overflow-y: auto;
       padding-right: 10px;
     }
@@ -195,10 +201,7 @@ export default {
         border-bottom: none;
       }
 
-      .entry-date {
-        min-width: 100px;
-        color: #666;
-      }
+      .entry-date { min-width: 120px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
       .entry-details {
         & {
@@ -214,11 +217,7 @@ export default {
             margin-bottom: 10px;
           }
 
-          >div {
-            font-size: 0.95em;
-            color: #2c3e50;
-            white-space: nowrap;
-          }
+          >div { font-size: 0.95em; color: var(--text); white-space: nowrap; }
 
           .heating-time {
             color: #42b983;
@@ -231,23 +230,24 @@ export default {
         position: absolute;
         top: 10px;
         right: 10px;
-        width: 24px;
-        height: 24px;
+         width: 28px;
+         height: 28px;
         padding: 0;
-        border-radius: 50%;
-        background: #dc3545;
+         border-radius: 999px;
+         background: #ef4444;
         color: white;
         border: none;
         font-size: 14px;
         cursor: pointer;
         opacity: 0;
-        transition: opacity 0.2s;
+        transition: opacity 0.2s, transform .08s ease;
         display: flex;
         align-items: center;
         justify-content: center;
 
         &:hover {
-          background: #c82333;
+         background: #dc2626;
+         transform: translateY(-1px);
         }
       }
 
@@ -262,7 +262,32 @@ export default {
   .no-history {
     text-align: center;
     color: #666;
-    padding: 20px;
+    padding: 32px 20px;
+    display: grid;
+    gap: 6px;
+    .illustration { font-size: 28px; }
+    .title { font-weight: 600; color: #1f2937; }
+    .hint { color: #6b7280; font-size: 14px; }
+  }
+}
+
+[data-theme='dark'] .history-list {
+  background: #1f1f1f;
+  color: #e4e4e7;
+
+  .export-btn { background-color: #3b82f6; }
+  .export-btn:hover { background-color: #2563eb; }
+  .delete-all-btn { background-color: #dc2626; }
+  .delete-all-btn:hover { background-color: #b91c1c; }
+
+  .history-entry { border-bottom-color: rgba(161, 161, 170, 0.18); }
+  .entry-stats > div { color: #e5e7eb; }
+  .delete-btn { background: #dc2626; }
+
+  .no-history {
+    color: #cbd5e1;
+    .title { color: #e5e7eb; }
+    .hint { color: #a1a1aa; }
   }
 }
 
