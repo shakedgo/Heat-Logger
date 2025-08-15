@@ -12,17 +12,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RecordHandler handles HTTP requests for daily records
+// // RecordHandler handles HTTP requests for daily records
 type RecordHandler struct {
-	recordService     *services.RecordService
-	predictionService *services.PredictionService
+	recordService *services.RecordService
+	predictor     services.Predictor
 }
 
 // NewRecordHandler creates a new record handler instance
-func NewRecordHandler(recordService *services.RecordService, predictionService *services.PredictionService) *RecordHandler {
+func NewRecordHandler(recordService *services.RecordService, predictor services.Predictor) *RecordHandler {
 	return &RecordHandler{
-		recordService:     recordService,
-		predictionService: predictionService,
+		recordService: recordService,
+		predictor:     predictor,
 	}
 }
 
@@ -61,11 +61,9 @@ func (h *RecordHandler) CalculateHeatingTime(c *gin.Context) {
 	}
 
 	// Get prediction
-	prediction, err := h.predictionService.PredictHeatingTime(&req)
+	prediction, err := h.predictor.Predict(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to calculate heating time: " + err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate heating time: " + err.Error()})
 		return
 	}
 

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"heat-logger/internal/config"
 	"log"
 
 	"heat-logger/internal/models"
@@ -13,11 +14,11 @@ import (
 var DB *gorm.DB
 
 // InitDatabase initializes the database connection and runs migrations
-func InitDatabase() error {
+func InitDatabase(cfg *config.Config) error {
 	var err error
 
 	// Connect to SQLite database
-	DB, err = gorm.Open(sqlite.Open("data.db"), &gorm.Config{
+	DB, err = gorm.Open(sqlite.Open(cfg.Database.Path), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 
@@ -37,7 +38,7 @@ func InitDatabase() error {
 		log.Printf("Warning: Failed to migrate existing records: %v", err)
 	}
 
-	log.Println("Database initialized successfully")
+	log.Printf("Database initialized successfully at %s", cfg.Database.Path)
 	return nil
 }
 

@@ -689,3 +689,7 @@ func (s *PredictionService) calculatePerfectScoreDecay(perfectRecord models.Dail
 	}
 	return 1.0
 }
+
+func (s *PredictionService) Predict(req PredictionRequest) (*PredictionResponse, error) {
+	return s.PredictHeatingTime(&req)
+}

@@ -37,6 +37,47 @@ This application represents a complete implementation of a machine learning syst
 - **Architecture**: Clean separation with services, handlers, and models
 - **Validation**: Comprehensive input validation with proper error responses
 - **CORS**: Configured for seamless frontend integration
+- **Configuration**: Environment-based configuration system with .env support
+
+## 🔧 Environment Configuration
+
+The backend uses a comprehensive environment configuration system that supports:
+
+### Quick Setup
+```bash
+# Copy example configuration
+cp backend/.env.example backend/.env
+
+# Or use the setup script
+cd backend && ./scripts/env-setup.sh
+```
+
+### Key Configuration Areas
+- **Server**: Port, host, and CORS settings
+- **Database**: Path and driver configuration
+- **Prediction**: ML service version and model paths
+- **Logging**: Log level and format settings
+- **Environment**: Development/production mode switching
+
+### Environment Variables
+```bash
+# Server
+SERVER_PORT=8080
+SERVER_HOST=localhost
+
+# Database
+DATABASE_PATH=./data.db
+DATABASE_DRIVER=sqlite
+
+# Prediction Service
+PREDICTOR_VERSION=v2
+
+# Environment
+ENVIRONMENT=development
+GIN_MODE=debug
+```
+
+See `backend/ENVIRONMENT.md` for complete documentation.
 
 ## 📊 Machine Learning Algorithm
 
@@ -90,6 +131,9 @@ Heat-Logger/
 ├── backend/
 │   ├── cmd/server/main.go          # Application entry point
 │   ├── internal/
+│   │   ├── config/                 # Configuration management
+│   │   │   ├── config.go           # Configuration structs and loading
+│   │   │   └── env.go              # .env file utilities
 │   │   ├── handler/record_handler.go    # HTTP request handlers
 │   │   ├── models/record.go             # Database models
 │   │   ├── routes/router.go             # Route definitions
@@ -97,6 +141,9 @@ Heat-Logger/
 │   │       ├── prediction_service.go    # Advanced ML algorithm
 │   │       └── record_service.go        # Database operations
 │   ├── pkg/database/database.go         # Database connection
+│   ├── scripts/env-setup.sh             # Environment setup script
+│   ├── .env.example                     # Environment template
+│   ├── ENVIRONMENT.md                   # Configuration documentation
 │   └── data.db                          # SQLite database
 ├── frontend/
 │   ├── src/

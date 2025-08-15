@@ -1,6 +1,7 @@
 package router
 
 import (
+	"heat-logger/internal/config"
 	"heat-logger/internal/handler"
 	"heat-logger/internal/services"
 
@@ -8,25 +9,31 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter() *gin.Engine {
+func SetupRouter(cfg *config.Config) *gin.Engine {
 	r := gin.Default()
 
 	// Configure CORS for frontend integration
-	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"}
-	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
-	config.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
-	config.AllowCredentials = true
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = cfg.CORS.AllowedOrigins
+	corsConfig.AllowMethods = cfg.CORS.AllowedMethods
+	corsConfig.AllowHeaders = cfg.CORS.AllowedHeaders
+	corsConfig.AllowCredentials = true
 
-	r.Use(cors.New(config))
+	r.Use(cors.New(corsConfig))
 
 	// Initialize services
 	recordService := services.NewRecordService()
-	predictionService := services.NewPredictionService(recordService)
+	useV2 := cfg.Prediction.Version != "v1"
+
+	var predictor services.Predictor
+	if useV2 {
+		predictor = services.NewPredictionServiceV2(recordService, nil)
+	} else {
+		predictor = services.NewPredictionService(recordService) // v1 implements Predictor via shim
+	}
 
 	// Initialize handlers
-	recordHandler := handler.NewRecordHandler(recordService, predictionService)
-
+	recordHandler := handler.NewRecordHandler(recordService, predictor)
 	// API routes
 	api := r.Group("/api")
 	{
