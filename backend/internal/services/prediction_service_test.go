@@ -50,7 +50,7 @@ func TestPredictionService_NewUser_ShouldReceiveGlobalPrediction(t *testing.T) {
 			Satisfaction:       50.0,
 		},
 	}
-	mockRecordService.On("GetGlobalRecordsForPrediction", "new_user", 50).Return(globalRecords, nil)
+	mockRecordService.On("GetGlobalRecordsForPrediction", "new_user", 200).Return(globalRecords, nil)
 
 	req := &PredictionRequest{
 		UserID:      "new_user",
@@ -97,7 +97,7 @@ func TestPredictionService_UserWithFewRecords_ShouldReceiveBlendedPrediction(t *
 			Satisfaction:       50.0,
 		},
 	}
-	mockRecordService.On("GetGlobalRecordsForPrediction", "user_with_few_records", 50).Return(globalRecords, nil)
+	mockRecordService.On("GetGlobalRecordsForPrediction", "user_with_few_records", 200).Return(globalRecords, nil)
 
 	req := &PredictionRequest{
 		UserID:      "user_with_few_records",
@@ -145,7 +145,7 @@ func TestPredictionService_UserWithManyRecords_ShouldReceiveUserBasedPrediction(
 			Satisfaction:       50.0,
 		},
 	}
-	mockRecordService.On("GetGlobalRecordsForPrediction", "experienced_user", 50).Return(globalRecords, nil)
+	mockRecordService.On("GetGlobalRecordsForPrediction", "experienced_user", 200).Return(globalRecords, nil)
 
 	req := &PredictionRequest{
 		UserID:      "experienced_user",
@@ -346,7 +346,7 @@ func TestQuadraticScalingAndPatternRecognition(t *testing.T) {
 
 	// Set up mock expectations
 	mockRecordService.On("GetRecordsForPredictionByUser", "user1", 50).Return(userRecords, nil)
-	mockRecordService.On("GetGlobalRecordsForPrediction", "user1", 50).Return([]models.DailyRecord{}, nil)
+	mockRecordService.On("GetGlobalRecordsForPrediction", "user1", 200).Return([]models.DailyRecord{}, nil)
 
 	predictionService := &PredictionService{recordService: mockRecordService}
 
@@ -402,7 +402,7 @@ func TestContextualLearningProgression(t *testing.T) {
 
 	// Set up mock expectations
 	mockRecordService.On("GetRecordsForPredictionByUser", "user3", 50).Return(userRecords, nil)
-	mockRecordService.On("GetGlobalRecordsForPrediction", "user3", 50).Return([]models.DailyRecord{}, nil)
+	mockRecordService.On("GetGlobalRecordsForPrediction", "user3", 200).Return([]models.DailyRecord{}, nil)
 
 	predictionService := &PredictionService{recordService: mockRecordService}
 

@@ -72,20 +72,19 @@ type PredictionConfigV2 struct {
 // NewPredictionServiceV2 with sensible defaults.
 func NewPredictionServiceV2(recordService RecordServiceInterface, cfg *PredictionConfigV2) *PredictionServiceV2 {
 	defaultCfg := PredictionConfigV2{
-		SigmaDuration:       6.0,
-		SigmaTemp:           4.0,
-		K:                   60,
-		MinK:                8,
-		AnchorEpsilon:       5.0,
-		AnchorBoost:         1.6,
-		AnchorBlend:         0.35,
-		RecencyHalfLifeDays: 10.0,
-		UserBoost:           1.4,
-		StepCapFraction:     0.35,
-		MinMinutes:          5.0,
-		MaxMinutes:          120.0,
-		NeverCold:           true,
+		SigmaDuration:       4.0,   // Std-dev for Gaussian weighting on shower duration (min) — smaller = more sensitive to duration similarity.
+		SigmaTemp:           3.0,   // Std-dev for Gaussian weighting on ambient temperature (°C) — smaller = more sensitive to temperature similarity.
+		K:                   25,    // Number of nearest neighbors (records) to consider from history (user + global).
+		MinK:                6,     // Minimum number of records required for a prediction — ensures stability when history is sparse.
+		RecencyHalfLifeDays: 5.0,   // Weight decay half-life in days — newer feedback counts more, halves in influence every N days.
+		AnchorBlend:         0.35,  // Blend ratio between nearest-neighbor average and “perfect anchor” values — higher = perfects pull prediction more strongly.
+		UserBoost:           2,     // Multiplier for weights from the current user’s history — increases personalisation over global data.
+		StepCapFraction:     0.35,  // Max fractional change (vs. previous prediction) allowed in one step — smooths large jumps.
+		MinMinutes:          5,     // Lower bound for predicted heating time (minutes) — safety/clamping.
+		MaxMinutes:          120,   // Upper bound for predicted heating time (minutes) — safety/clamping.
+		NeverCold:           false, // If true, bias rounding upward to avoid under-heating (“cold” risk).
 	}
+
 	if cfg != nil {
 		// override defaults with provided values
 		if cfg.SigmaDuration > 0 {
@@ -217,9 +216,9 @@ func (s *PredictionServiceV2) Predict(req PredictionRequest) (*PredictionRespons
 	}
 	top := all[:k]
 
-	// 6) Weighted estimate (all) + anchor‑only estimate (if anchors exist)
-	estAll := weightedMean(top)
-	estAnchors, anchorWeightSum := weightedMeanAnchors(top)
+	// 6) Weighted estimate using implied targets (all) + anchor‑only estimate (if anchors exist)
+	estAll := weightedMeanTargets(top)
+	estAnchors, anchorWeightSum := weightedMeanTargetsAnchors(top)
 
 	// Blend toward anchors proportionally to their weight presence
 	if anchorWeightSum > 0 {
@@ -227,18 +226,18 @@ func (s *PredictionServiceV2) Predict(req PredictionRequest) (*PredictionRespons
 		estAll = (1.0-alpha)*estAll + alpha*estAnchors
 	}
 
-	// 7) Safety clamp vs last user record to avoid big jumps
-	if last, ok := latestUserRecord(userRecords); ok {
+	// 7) Safety clamp vs last similar user record (context‑aware) to avoid big jumps
+	if last, ok := latestSimilarUserRecord(userRecords, req, s.cfg.SigmaDuration*2.0, s.cfg.SigmaTemp*2.0); ok {
 		capFrac := s.cfg.StepCapFraction
 		minStep := last.HeatingTime * (1.0 - capFrac)
 		maxStep := last.HeatingTime * (1.0 + capFrac)
 		estAll = clamp(estAll, minStep, maxStep)
 	}
 
-	// 8) Absolute bounds and rounding policy
+	// 8) Absolute bounds and smart rounding (avoid 48.0x → ceil → 49 loop when feedback is hot)
 	estAll = clamp(estAll, s.cfg.MinMinutes, s.cfg.MaxMinutes)
-	if s.cfg.NeverCold {
-		estAll = math.Ceil(estAll)
+	if lastSat, ok := lastUserFeedback(userRecords); ok {
+		estAll = smartRound(estAll, lastSat)
 	} else {
 		estAll = math.Round(estAll)
 	}
@@ -331,4 +330,138 @@ func sumWeights(recs []recWrap) float64 {
 		total += r.weight
 	}
 	return total
+}
+
+// --- v2 learning helpers: implied target and context-aware clamp ---
+
+// impliedTarget converts a historical record into an implied target time based on satisfaction feedback.
+// - Satisfaction ~50 -> keep the same time
+// - Satisfaction >50 (too hot) -> reduce time with graduated percentages
+// - Satisfaction <50 (too cold) -> increase time proportionally to severity with mild overshoot
+func impliedTarget(r models.DailyRecord) float64 {
+	s := r.Satisfaction
+	h := r.HeatingTime
+
+	// Near-perfect: tiny/no change
+	if math.Abs(s-50.0) <= 1.0 {
+		return h
+	}
+
+	if s > 50.0 {
+		// Graduated reductions similar to v1 behavior
+		switch {
+		case s >= 85:
+			return h * 0.75
+		case s >= 80:
+			return h * 0.80
+		case s >= 75:
+			return h * 0.83
+		case s >= 65:
+			return h * 0.87
+		case s >= 60:
+			return h * 0.92
+		case s >= 55:
+			return h * 0.97
+		default:
+			// Slightly hot (50<s<55): small nudge
+			return h * 0.99
+		}
+	}
+
+	// Too cold: proportional increase based on severity, with mild overshoot for very cold
+	coldSeverity := (50.0 - s) / 50.0 // 0..1
+	if coldSeverity < 0 {
+		coldSeverity = 0
+	}
+	// Base learning percent scales from 12% up to 40%
+	basePercent := 0.12 + 0.28*coldSeverity
+	// Mild overshoot up to +10% extra when extremely cold
+	overshoot := 1.0 + 0.10*coldSeverity
+	factor := 1.0 + basePercent*overshoot
+	return h * factor
+}
+
+// weightedMeanTargets computes weighted mean over implied targets instead of raw times
+func weightedMeanTargets(recs []recWrap) float64 {
+	totalW := 0.0
+	sum := 0.0
+	for _, r := range recs {
+		if r.weight <= 0 {
+			continue
+		}
+		tgt := impliedTarget(r.rec)
+		sum += tgt * r.weight
+		totalW += r.weight
+	}
+	if totalW == 0 {
+		return 30.0
+	}
+	return sum / totalW
+}
+
+// weightedMeanTargetsAnchors computes weighted mean of implied targets restricted to anchor records
+func weightedMeanTargetsAnchors(recs []recWrap) (mean float64, weightSum float64) {
+	totalW := 0.0
+	sum := 0.0
+	for _, r := range recs {
+		if !r.anchor || r.weight <= 0 {
+			continue
+		}
+		tgt := impliedTarget(r.rec)
+		sum += tgt * r.weight
+		totalW += r.weight
+	}
+	if totalW == 0 {
+		return 0, 0
+	}
+	return sum / totalW, totalW
+}
+
+// latestSimilarUserRecord returns the latest user record close to the request context
+func latestSimilarUserRecord(userRecs []models.DailyRecord, req PredictionRequest, maxDeltaDur, maxDeltaTemp float64) (models.DailyRecord, bool) {
+	var (
+		found  bool
+		latest models.DailyRecord
+	)
+	for _, r := range userRecs {
+		if math.Abs(r.ShowerDuration-req.Duration) > maxDeltaDur {
+			continue
+		}
+		if math.Abs(r.AverageTemperature-req.Temperature) > maxDeltaTemp {
+			continue
+		}
+		if !found || r.Date.After(latest.Date) {
+			latest = r
+			found = true
+		}
+	}
+	return latest, found
+}
+
+// smartRound: bias safe, but avoid sticking on the upper minute when user said "too hot".
+func smartRound(est float64, lastSat float64) float64 {
+	frac := est - math.Floor(est)
+	if lastSat > 50 && frac <= 0.25 { // recently hot -> allow snap-down if close
+		return math.Floor(est)
+	}
+	if lastSat < 50 { // recently cold -> keep bias-to-hot
+		return math.Ceil(est)
+	}
+	return math.Round(est) // near-perfect recently -> unbiased
+}
+
+// lastUserFeedback returns the most recent satisfaction for the user.
+func lastUserFeedback(userRecs []models.DailyRecord) (float64, bool) {
+	var latest models.DailyRecord
+	found := false
+	for _, r := range userRecs {
+		if !found || r.Date.After(latest.Date) {
+			latest = r
+			found = true
+		}
+	}
+	if !found {
+		return 50, false
+	}
+	return latest.Satisfaction, true
 }

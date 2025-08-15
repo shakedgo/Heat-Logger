@@ -214,7 +214,7 @@ func (h *RecordHandler) ExportHistory(c *gin.Context) {
 	defer writer.Flush()
 
 	// Write header
-	header := []string{"Date", "Shower Duration", "Average Temperature", "Heating Time", "Satisfaction"}
+	header := []string{"User ID", "Date", "Shower Duration", "Average Temperature", "Heating Time", "Satisfaction"}
 	if err := writer.Write(header); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to write CSV header",
@@ -225,6 +225,7 @@ func (h *RecordHandler) ExportHistory(c *gin.Context) {
 	// Write data rows
 	for _, record := range records {
 		row := []string{
+			record.UserID,
 			record.Date.Format("2006-01-02 15:04:05"),
 			strconv.FormatFloat(record.ShowerDuration, 'f', 1, 64),
 			strconv.FormatFloat(record.AverageTemperature, 'f', 1, 64),
