@@ -52,11 +52,8 @@ export default {
         this.latestHeatingTime = response.data.heatingTime;
       } catch (error) {
         console.error('Error:', error);
-        if (error.response && error.response.data && error.response.data.error) {
-          alert(`Error: ${error.response.data.error}`);
-        } else {
-          alert('An error occurred while calculating. Please try again.');
-        }
+        const msg = error.response?.data?.error || 'An error occurred while calculating. Please try again.';
+        this.$toast(msg, { type: 'error' });
       }
     },
     async handleSubmit(data) {
@@ -72,11 +69,8 @@ export default {
         }
       } catch (error) {
         console.error('Error:', error);
-        if (error.response && error.response.data && error.response.data.error) {
-          alert(`Error: ${error.response.data.error}`);
-        } else {
-          alert('An error occurred while saving feedback. Please try again.');
-        }
+        const msg = error.response?.data?.error || 'An error occurred while saving feedback. Please try again.';
+        this.$toast(msg, { type: 'error' });
       }
     },
     async loadHistory() {
@@ -86,32 +80,27 @@ export default {
         this.history = response.data.history;
       } catch (error) {
         console.error('Error loading history:', error);
+        this.$toast('Failed to load history. Is the server running?', { type: 'error' });
       }
     },
     async handleDelete(id) {
       try {
         const response = await this.$api.post('/history/delete', { id });
-        if (response.status === 200) {
-          await this.loadHistory();
-        } else {
-          throw new Error('Failed to delete record');
-        }
+        if (response.status !== 200) throw new Error('Failed to delete record');
+        await this.loadHistory();
       } catch (error) {
         console.error('Error deleting record:', error);
-        alert('Failed to delete record. Please try again.');
+        this.$toast('Failed to delete record. Please try again.', { type: 'error' });
       }
     },
     async handleDeleteAll() {
       try {
         const response = await this.$api.post('/history/deleteall');
-        if (response.status === 200) {
-          await this.loadHistory();
-        } else {
-          throw new Error('Failed to delete all records');
-        }
+        if (response.status !== 200) throw new Error('Failed to delete all records');
+        await this.loadHistory();
       } catch (error) {
         console.error('Error deleting all records:', error);
-        alert('Failed to delete all records. Please try again.');
+        this.$toast('Failed to delete all records. Please try again.', { type: 'error' });
       }
     }
   },

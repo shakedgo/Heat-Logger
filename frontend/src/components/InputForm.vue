@@ -123,10 +123,16 @@ export default {
         return;
       }
 
+      const satisfaction = parseFloat(this.formData.satisfaction);
+      if (isNaN(satisfaction) || satisfaction < 1 || satisfaction > 100) {
+        this.$toast('Satisfaction must be a number between 1 and 100.', { type: 'error' });
+        return;
+      }
+
       const feedbackData = {
         ...this.currentEntry,
         heatingTime: this.latestHeatingTime,
-        satisfaction: parseFloat(this.formData.satisfaction)
+        satisfaction
       };
 
       this.$emit('submitFeedback', feedbackData);
