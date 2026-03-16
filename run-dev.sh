@@ -22,17 +22,13 @@ echo "Starting frontend server..."
 npm run dev &
 FRONTEND_PID=$!
 
-# Clean up and rebuild backend
-echo "Cleaning up and rebuilding backend..."
+# Register cleanup before blocking on air
+trap 'kill $FRONTEND_PID 2>/dev/null' EXIT SIGINT SIGTERM
+
+# Prepare backend
+echo "Starting backend server..."
 cd ../backend
 pkill -f "./tmp/main" || true
 rm -f tmp/main
-go build -o tmp/main cmd/server/main.go
-
-# Install backend dependencies and start the server
-echo "Starting backend server..."
 go mod tidy
 "$GOPATH/bin/air"
-
-# Cleanup on script termination
-trap 'kill $FRONTEND_PID' EXIT 

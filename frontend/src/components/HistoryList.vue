@@ -72,7 +72,7 @@ export default {
       const validEntries = this.history.filter(entry =>
         entry.id &&
         entry.date !== "0001-01-01T00:00:00Z" &&
-        entry.satisfaction > 0
+        entry.satisfaction >= 1 && entry.satisfaction <= 100
       );
       return validEntries;
     }
@@ -113,14 +113,14 @@ export default {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `heating_history_${new Date().toLocaleDateString()}.csv`;
+        a.download = `heating_history_${new Date().toISOString().split('T')[0]}.csv`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } catch (error) {
         console.error('Failed to export history:', error);
-        alert('Failed to export history. Please try again.');
+        this.$toast('Failed to export history. Please try again.', { type: 'error' });
       }
     }
   },
