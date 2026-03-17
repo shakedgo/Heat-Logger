@@ -69,6 +69,18 @@ func (s *RecordService) DeleteAllRecords() error {
 	return s.db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&models.DailyRecord{}).Error
 }
 
+// RestoreRecord restores a soft-deleted record by clearing its deleted_at timestamp
+func (s *RecordService) RestoreRecord(id string) error {
+	result := s.db.Unscoped().Model(&models.DailyRecord{}).Where("id = ? AND deleted_at IS NOT NULL", id).Update("deleted_at", nil)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("record not found or not deleted")
+	}
+	return nil
+}
+
 // GetRecordsForPrediction retrieves recent records for ML prediction
 func (s *RecordService) GetRecordsForPrediction(limit int) ([]models.DailyRecord, error) {
 	var records []models.DailyRecord

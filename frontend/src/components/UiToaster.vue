@@ -10,7 +10,7 @@
           role="status"
         >
           <span class="msg">{{ t.message }}</span>
-          <button v-if="t.action" class="toast-action" @click="t.action.callback()">
+          <button v-if="t.action" class="toast-action" @click="handleAction(t)">
             {{ t.action.label }}
           </button>
         </div>
@@ -35,6 +35,10 @@ import { inject } from 'vue'
 const ui = inject('ui')
 function close(result) {
   ui.resolveConfirm(result)
+}
+function handleAction(toast) {
+  if (toast.action?.handler) toast.action.handler()
+  ui.dismissToast(toast.id)
 }
 </script>
 
@@ -65,16 +69,15 @@ function close(result) {
   gap: 12px;
 }
 .toast-action {
-  background: rgba(255,255,255,0.18);
-  color: white;
+  background: none;
   border: none;
-  padding: 5px 12px;
-  border-radius: 8px;
-  font-size: 13px;
+  color: white;
   font-weight: 600;
+  text-decoration: underline;
   cursor: pointer;
+  padding: 0;
+  font-size: 14px;
   white-space: nowrap;
-  &:hover { background: rgba(255,255,255,0.28); }
 }
 .toast.success { background: #065f46; }
 .toast.error { background: #7f1d1d; }

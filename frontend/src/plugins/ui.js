@@ -23,7 +23,6 @@ function createUiStore() {
       type: options.type || 'info',
       duration: options.duration || 3000,
       action: options.action || null,
-      onDismiss: options.onDismiss || null,
     }
     state.toasts.push(toast)
     toast._timeoutId = setTimeout(() => {
@@ -42,6 +41,11 @@ function createUiStore() {
       const removed = state.toasts.splice(index, 1)[0]
       if (removed._timeoutId) clearTimeout(removed._timeoutId)
     }
+  }
+
+  function dismissToast(id) {
+    const index = state.toasts.findIndex(t => t.id === id)
+    if (index !== -1) state.toasts.splice(index, 1)
   }
 
   function openConfirm({ title, message, confirmText = 'Confirm', cancelText = 'Cancel', variant = 'default' }) {
