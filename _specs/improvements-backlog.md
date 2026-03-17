@@ -2,9 +2,6 @@
 
 ## Medium Priority
 
-### 6. Undo for record deletion
-Records are hard-deleted immediately. After delete, show a brief (5–10 second) "Undo" toast that can soft-restore the record before permanent removal.
-
 ### 7. Delete-all confirmation should show record count
 The current message is "This cannot be undone." Change it to "Delete **N** records? This cannot be undone." so the user understands the scope.
 
@@ -42,5 +39,4 @@ On app mount, ping a `/api/health` endpoint. If it fails, show a persistent bann
 
 - **Multi-user auth**: UserId is client-generated with no auth. Consider adding proper user accounts or at least device-bound tokens to prevent data mixing.
 - **Analytics view**: Show trends like average satisfaction over time, prediction accuracy delta, and temperature sensitivity.
-- **Soft delete**: Instead of hard-deleting records, mark them as deleted. Useful for undo and audit.
 - **Batch operations**: Select multiple history records for bulk delete or export of a filtered subset.
