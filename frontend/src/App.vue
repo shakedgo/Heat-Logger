@@ -88,9 +88,28 @@ export default {
         const response = await this.$api.post('/history/delete', { id });
         if (response.status !== 200) throw new Error('Failed to delete record');
         await this.loadHistory();
+        this.$toast('Record deleted', {
+          type: 'success',
+          duration: 7000,
+          action: {
+            label: 'Undo',
+            handler: () => this.handleRestore(id),
+          },
+        });
       } catch (error) {
         console.error('Error deleting record:', error);
         this.$toast('Failed to delete record. Please try again.', { type: 'error' });
+      }
+    },
+    async handleRestore(id) {
+      try {
+        const response = await this.$api.post('/history/restore', { id });
+        if (response.status !== 200) throw new Error('Failed to restore record');
+        await this.loadHistory();
+        this.$toast('Record restored', { type: 'success' });
+      } catch (error) {
+        console.error('Error restoring record:', error);
+        this.$toast('Failed to restore record.', { type: 'error' });
       }
     },
     async handleDeleteAll() {

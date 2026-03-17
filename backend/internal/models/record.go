@@ -9,15 +9,16 @@ import (
 
 // DailyRecord represents a daily heating record with user feedback
 type DailyRecord struct {
-	ID                 string    `json:"id" gorm:"primaryKey;type:varchar(36)"`
-	UserID             string    `json:"userId" gorm:"not null;default:'global';index"`
-	Date               time.Time `json:"date" gorm:"not null"`
-	ShowerDuration     float64   `json:"showerDuration" gorm:"not null"`
-	AverageTemperature float64   `json:"averageTemperature" gorm:"not null"`
-	HeatingTime        float64   `json:"heatingTime" gorm:"not null"`
-	Satisfaction       float64   `json:"satisfaction" gorm:"not null"`
-	CreatedAt          time.Time `json:"createdAt" gorm:"autoCreateTime"`
-	UpdatedAt          time.Time `json:"updatedAt" gorm:"autoUpdateTime"`
+	ID                 string         `json:"id" gorm:"primaryKey;type:varchar(36)"`
+	UserID             string         `json:"userId" gorm:"not null;default:'global';index"`
+	Date               time.Time      `json:"date" gorm:"not null"`
+	ShowerDuration     float64        `json:"showerDuration" gorm:"not null"`
+	AverageTemperature float64        `json:"averageTemperature" gorm:"not null"`
+	HeatingTime        float64        `json:"heatingTime" gorm:"not null"`
+	Satisfaction       float64        `json:"satisfaction" gorm:"not null"`
+	CreatedAt          time.Time      `json:"createdAt" gorm:"autoCreateTime"`
+	UpdatedAt          time.Time      `json:"updatedAt" gorm:"autoUpdateTime"`
+	DeletedAt          gorm.DeletedAt `json:"deletedAt,omitempty" gorm:"index"`
 }
 
 // BeforeCreate is a GORM hook that generates a UUID before creating a record

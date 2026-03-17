@@ -86,12 +86,8 @@ export default {
       if (satisfaction > 60) return 'hot';
       return 'perfect';
     },
-    async handleDelete(id) {
-      try {
-        await this.$confirm({ title: 'Delete record', message: 'Are you sure you want to delete this record?' })
-        this.$emit('delete', id)
-        this.$toast('Record deleted', { type: 'success' })
-      } catch (_) {}
+    handleDelete(id) {
+      this.$emit('delete', id)
     },
     async handleDeleteAll() {
       try {

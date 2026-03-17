@@ -47,6 +47,7 @@ func SetupRouter(cfg *config.Config) *gin.Engine {
 		api.GET("/history", recordHandler.GetHistory)
 		api.POST("/history/delete", recordHandler.DeleteRecord)
 		api.POST("/history/deleteall", recordHandler.DeleteAllRecords)
+		api.POST("/history/restore", recordHandler.RestoreRecord)
 		api.GET("/history/export", recordHandler.ExportHistory)
 
 		// Health check
