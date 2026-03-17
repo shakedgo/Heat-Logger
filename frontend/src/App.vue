@@ -46,7 +46,7 @@ export default {
     return {
       history: [],
       latestHeatingTime: null,
-      pendingDeletion: null
+      pendingDeletion: null,
       latestSampleCount: null,
       latestConfidenceMin: null,
       latestConfidenceMax: null
