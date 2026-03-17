@@ -22,12 +22,26 @@ function createUiStore() {
       message,
       type: options.type || 'info',
       duration: options.duration || 3000,
+      action: options.action || null,
+      onDismiss: options.onDismiss || null,
     }
     state.toasts.push(toast)
-    setTimeout(() => {
+    toast._timeoutId = setTimeout(() => {
       const index = state.toasts.findIndex(t => t.id === id)
-      if (index !== -1) state.toasts.splice(index, 1)
+      if (index !== -1) {
+        const removed = state.toasts.splice(index, 1)[0]
+        if (removed.onDismiss) removed.onDismiss()
+      }
     }, toast.duration)
+    return id
+  }
+
+  function dismissToast(id) {
+    const index = state.toasts.findIndex(t => t.id === id)
+    if (index !== -1) {
+      const removed = state.toasts.splice(index, 1)[0]
+      if (removed._timeoutId) clearTimeout(removed._timeoutId)
+    }
   }
 
   function openConfirm({ title, message, confirmText = 'Confirm', cancelText = 'Cancel', variant = 'default' }) {
@@ -56,6 +70,7 @@ function createUiStore() {
     state: readonly(state),
     _state: state,
     showToast,
+    dismissToast,
     openConfirm,
     resolveConfirm,
   }
@@ -65,6 +80,7 @@ export default {
   install(app) {
     const ui = createUiStore()
     app.config.globalProperties.$toast = (message, options) => ui.showToast(message, options)
+    app.config.globalProperties.$dismissToast = (id) => ui.dismissToast(id)
     app.config.globalProperties.$confirm = (options) => ui.openConfirm(options)
     app.provide('ui', ui)
   }

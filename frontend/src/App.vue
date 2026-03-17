@@ -33,6 +33,8 @@ import InputForm from './components/InputForm.vue'
 import HistoryList from './components/HistoryList.vue'
 import UiToaster from './components/UiToaster.vue'
 
+const UNDO_TIMEOUT_MS = 7000
+
 export default {
   name: 'App',
   components: {
@@ -44,6 +46,7 @@ export default {
     return {
       history: [],
       latestHeatingTime: null,
+      pendingDeletion: null
       latestSampleCount: null,
       latestConfidenceMin: null,
       latestConfidenceMax: null
@@ -97,16 +100,48 @@ export default {
       }
     },
     async handleDelete(id) {
+      if (this.pendingDeletion) {
+        await this.commitPendingDeletion()
+      }
+      const index = this.history.findIndex(r => r.id === id)
+      if (index === -1) return
+      const record = { ...this.history[index] }
+      this.history.splice(index, 1)
+      const toastId = this.$toast('Record deleted', {
+        type: 'info',
+        duration: UNDO_TIMEOUT_MS,
+        action: { label: 'Undo', callback: () => this.undoDeletion() },
+        onDismiss: () => this.commitPendingDeletion(),
+      })
+      this.pendingDeletion = { id, record, index, toastId }
+    },
+    undoDeletion() {
+      if (!this.pendingDeletion) return
+      const { record, index, toastId } = this.pendingDeletion
+      this.$dismissToast(toastId)
+      const insertAt = Math.min(index, this.history.length)
+      this.history.splice(insertAt, 0, record)
+      this.pendingDeletion = null
+      this.$toast('Record restored', { type: 'success' })
+    },
+    async commitPendingDeletion() {
+      if (!this.pendingDeletion) return
+      const { id, record, index, toastId } = this.pendingDeletion
+      this.pendingDeletion = null
+      this.$dismissToast(toastId)
       try {
-        const response = await this.$api.post('/history/delete', { id });
-        if (response.status !== 200) throw new Error('Failed to delete record');
-        await this.loadHistory();
+        await this.$api.post('/history/delete', { id })
       } catch (error) {
-        console.error('Error deleting record:', error);
-        this.$toast('Failed to delete record. Please try again.', { type: 'error' });
+        console.error('Error deleting record:', error)
+        this.$toast('Failed to delete record. Please try again.', { type: 'error' })
+        const insertAt = Math.min(index, this.history.length)
+        this.history.splice(insertAt, 0, record)
       }
     },
     async handleDeleteAll() {
+      if (this.pendingDeletion) {
+        await this.commitPendingDeletion()
+      }
       try {
         const response = await this.$api.post('/history/deleteall');
         if (response.status !== 200) throw new Error('Failed to delete all records');
@@ -118,7 +153,20 @@ export default {
     }
   },
   async created() {
-    await this.loadHistory();
+    await this.loadHistory()
+    this._onBeforeUnload = () => {
+      if (this.pendingDeletion) {
+        const { id } = this.pendingDeletion
+        const blob = new Blob([JSON.stringify({ id })], { type: 'application/json' })
+        navigator.sendBeacon('/api/history/delete', blob)
+        this.pendingDeletion = null
+      }
+    }
+    window.addEventListener('beforeunload', this._onBeforeUnload)
+  },
+  beforeUnmount() {
+    window.removeEventListener('beforeunload', this._onBeforeUnload)
+    this.commitPendingDeletion()
   }
 }
 </script>
