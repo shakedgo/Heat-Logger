@@ -3,7 +3,7 @@
     <div class="toaster" aria-live="polite" aria-atomic="true">
       <transition-group name="toast" tag="div">
         <div
-          v-for="t in ui.state.toasts"
+          v-for="t in ui._state.toasts"
           :key="t.id"
           class="toast"
           :class="t.type"
