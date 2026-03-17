@@ -46,7 +46,7 @@ export default {
     return {
       history: [],
       latestHeatingTime: null,
-      pendingDeletion: null
+      pendingDeletion: null,
       latestSampleCount: null,
       latestConfidenceMin: null,
       latestConfidenceMax: null
@@ -110,7 +110,7 @@ export default {
       const toastId = this.$toast('Record deleted', {
         type: 'info',
         duration: UNDO_TIMEOUT_MS,
-        action: { label: 'Undo', callback: () => this.undoDeletion() },
+        action: { label: 'Undo', handler: () => this.undoDeletion() },
         onDismiss: () => this.commitPendingDeletion(),
       })
       this.pendingDeletion = { id, record, index, toastId }

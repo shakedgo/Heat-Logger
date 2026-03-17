@@ -2,9 +2,6 @@
 
 ## Medium Priority
 
-### 5. Prediction response should include confidence/sample count
-The `/api/calculate` endpoint returns `{heatingTime: X}` only. Add `sampleCount` (number of neighbors used) and optionally `min`/`max` range so the UI can communicate prediction confidence to the user.
-
 ### 6. Undo for record deletion
 Records are hard-deleted immediately. After delete, show a brief (5–10 second) "Undo" toast that can soft-restore the record before permanent removal.
 
