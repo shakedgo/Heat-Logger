@@ -19,6 +19,7 @@ dist-ssr
 
 # Go build artifacts
 backend/main
+backend/tmp/
 
 # Editor directories and files
 .vscode/*
