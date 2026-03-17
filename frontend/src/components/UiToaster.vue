@@ -10,6 +10,9 @@
           role="status"
         >
           <span class="msg">{{ t.message }}</span>
+          <button v-if="t.action" class="toast-action" @click="handleAction(t)">
+            {{ t.action.label }}
+          </button>
         </div>
       </transition-group>
     </div>
@@ -32,6 +35,10 @@ import { inject } from 'vue'
 const ui = inject('ui')
 function close(result) {
   ui.resolveConfirm(result)
+}
+function handleAction(toast) {
+  if (toast.action?.handler) toast.action.handler()
+  ui.dismissToast(toast.id)
 }
 </script>
 
@@ -57,6 +64,20 @@ function close(result) {
   box-shadow: 0 12px 22px rgba(0,0,0,0.14);
   font-size: 15px;
   line-height: 1.25;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.toast-action {
+  background: none;
+  border: none;
+  color: white;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  white-space: nowrap;
 }
 .toast.success { background: #065f46; }
 .toast.error { background: #7f1d1d; }

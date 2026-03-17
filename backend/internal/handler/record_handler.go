@@ -194,6 +194,39 @@ func (h *RecordHandler) DeleteAllRecords(c *gin.Context) {
 	})
 }
 
+// RestoreRecord handles POST /api/history/restore
+func (h *RecordHandler) RestoreRecord(c *gin.Context) {
+	var req struct {
+		ID string `json:"id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request data: " + err.Error(),
+		})
+		return
+	}
+
+	err := h.recordService.RestoreRecord(req.ID)
+	if err != nil {
+		if err.Error() == "record not found or not deleted" {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Record not found or not deleted",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to restore record: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Record restored successfully",
+	})
+}
+
 // ExportHistory handles GET /api/history/export
 func (h *RecordHandler) ExportHistory(c *gin.Context) {
 	records, err := h.recordService.GetAllRecords()
