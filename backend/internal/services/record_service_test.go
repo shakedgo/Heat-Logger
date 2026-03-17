@@ -127,6 +127,79 @@ func TestDeleteAllRecords_SoftDeletesAll(t *testing.T) {
 	assert.Len(t, all, 3)
 }
 
+func TestCreateRecord_ZeroDate_SetsDateToNow(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestRecordService(db)
+	before := time.Now().Add(-time.Second)
+
+	record := &models.DailyRecord{
+		ID:                 "rec-zero-date",
+		UserID:             "test-user",
+		ShowerDuration:     10.0,
+		AverageTemperature: 20.0,
+		HeatingTime:        8.0,
+		Satisfaction:       50.0,
+	}
+	require.NoError(t, svc.CreateRecord(record))
+
+	after := time.Now().Add(time.Second)
+	assert.False(t, record.Date.IsZero())
+	assert.True(t, record.Date.After(before))
+	assert.True(t, record.Date.Before(after))
+}
+
+func TestGetRecordByID_NonExistent_ReturnsError(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestRecordService(db)
+
+	rec, err := svc.GetRecordByID("does-not-exist")
+	assert.Nil(t, rec)
+	require.Error(t, err)
+	assert.Equal(t, "record not found", err.Error())
+}
+
+func TestDeleteRecord_NonExistent_ReturnsError(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestRecordService(db)
+
+	err := svc.DeleteRecord("ghost-id")
+	require.Error(t, err)
+	assert.Equal(t, "record not found", err.Error())
+}
+
+func TestDeleteAllRecords_EmptyTable_NoError(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestRecordService(db)
+
+	err := svc.DeleteAllRecords()
+	assert.NoError(t, err)
+
+	records, err := svc.GetAllRecords()
+	require.NoError(t, err)
+	assert.Empty(t, records)
+}
+
+func TestGetGlobalRecordsForPrediction_EmptyExclude_ReturnsAll(t *testing.T) {
+	db := setupTestDB(t)
+	svc := newTestRecordService(db)
+
+	createTestRecord(t, svc, "rec-user1")
+	rec2 := &models.DailyRecord{
+		ID:                 "rec-user2",
+		UserID:             "other-user",
+		Date:               time.Now(),
+		ShowerDuration:     10.0,
+		AverageTemperature: 20.0,
+		HeatingTime:        8.0,
+		Satisfaction:       50.0,
+	}
+	require.NoError(t, svc.CreateRecord(rec2))
+
+	records, err := svc.GetGlobalRecordsForPrediction("", 100)
+	require.NoError(t, err)
+	assert.Len(t, records, 2)
+}
+
 func TestPredictionQueries_ExcludeSoftDeleted(t *testing.T) {
 	db := setupTestDB(t)
 	svc := newTestRecordService(db)
