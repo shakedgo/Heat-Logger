@@ -17,6 +17,9 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Go build artifacts
+backend/main
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
