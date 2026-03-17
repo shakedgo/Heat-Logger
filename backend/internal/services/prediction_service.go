@@ -35,7 +35,10 @@ type PredictionRequest struct {
 
 // PredictionResponse represents the prediction output
 type PredictionResponse struct {
-	HeatingTime float64 `json:"heatingTime"`
+	HeatingTime   float64  `json:"heatingTime"`
+	SampleCount   int      `json:"sampleCount"`
+	ConfidenceMin *float64 `json:"confidenceMin,omitempty"`
+	ConfidenceMax *float64 `json:"confidenceMax,omitempty"`
 }
 
 // SimilarRecord represents a record with similarity score
@@ -62,9 +65,20 @@ func (s *PredictionService) PredictHeatingTime(req *PredictionRequest) (*Predict
 	// Calculate hybrid prediction
 	heatingTime := s.getCombinedPrediction(req, userRecords, globalRecords)
 
-	return &PredictionResponse{
+	// Compute confidence metadata from similar records
+	allRecords := append(userRecords, globalRecords...)
+	similar := s.findSimilarRecords(req, allRecords)
+
+	resp := &PredictionResponse{
 		HeatingTime: math.Round(heatingTime), // Round to whole minutes
-	}, nil
+		SampleCount: len(similar),
+	}
+	if len(similar) > 1 {
+		min, max := heatingTimeRange(similar)
+		resp.ConfidenceMin = &min
+		resp.ConfidenceMax = &max
+	}
+	return resp, nil
 }
 
 // predictWithDefaults returns a prediction using default values when no historical data exists
@@ -692,4 +706,18 @@ func (s *PredictionService) calculatePerfectScoreDecay(perfectRecord models.Dail
 
 func (s *PredictionService) Predict(req PredictionRequest) (*PredictionResponse, error) {
 	return s.PredictHeatingTime(&req)
+}
+
+// heatingTimeRange returns the min and max HeatingTime among similar records.
+func heatingTimeRange(records []SimilarRecord) (min, max float64) {
+	min, max = records[0].Record.HeatingTime, records[0].Record.HeatingTime
+	for _, r := range records[1:] {
+		if r.Record.HeatingTime < min {
+			min = r.Record.HeatingTime
+		}
+		if r.Record.HeatingTime > max {
+			max = r.Record.HeatingTime
+		}
+	}
+	return
 }

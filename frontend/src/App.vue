@@ -8,10 +8,13 @@
       <p class="subtitle">Smarter water heater timings, based on you</p>
     </header>
     <div class="content">
-      <InputForm 
-        @calculate="handleCalculate" 
+      <InputForm
+        @calculate="handleCalculate"
         @submitFeedback="handleSubmit"
         :latestHeatingTime="latestHeatingTime"
+        :latestSampleCount="latestSampleCount"
+        :latestConfidenceMin="latestConfidenceMin"
+        :latestConfidenceMax="latestConfidenceMax"
       />
       <div class="history-section">
         <HistoryList 
@@ -44,6 +47,9 @@ export default {
       history: [],
       latestHeatingTime: null,
       pendingDeletion: null
+      latestSampleCount: null,
+      latestConfidenceMin: null,
+      latestConfidenceMax: null
     }
   },
   methods: {
@@ -52,7 +58,11 @@ export default {
         console.log('Sending prediction request:', data);
         const response = await this.$api.post('/calculate', data);
         console.log('Received prediction response:', response.data);
-        this.latestHeatingTime = response.data.heatingTime;
+        const { heatingTime, sampleCount, confidenceMin, confidenceMax } = response.data;
+        this.latestHeatingTime = heatingTime;
+        this.latestSampleCount = sampleCount ?? 0;
+        this.latestConfidenceMin = confidenceMin ?? null;
+        this.latestConfidenceMax = confidenceMax ?? null;
       } catch (error) {
         console.error('Error:', error);
         const msg = error.response?.data?.error || 'An error occurred while calculating. Please try again.';
@@ -67,6 +77,9 @@ export default {
         if (response.status === 200) {
           await this.loadHistory();
           this.latestHeatingTime = null;
+          this.latestSampleCount = null;
+          this.latestConfidenceMin = null;
+          this.latestConfidenceMax = null;
         } else {
           throw new Error('Failed to submit feedback');
         }

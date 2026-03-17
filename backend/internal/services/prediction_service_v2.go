@@ -159,7 +159,7 @@ func (s *PredictionServiceV2) Predict(req PredictionRequest) (*PredictionRespons
 		} else {
 			out = math.Round(out)
 		}
-		return &PredictionResponse{HeatingTime: clamp(out, s.cfg.MinMinutes, s.cfg.MaxMinutes)}, nil
+		return &PredictionResponse{HeatingTime: clamp(out, s.cfg.MinMinutes, s.cfg.MaxMinutes), SampleCount: 0}, nil
 	}
 
 	// 3) Precompute cell frequencies to avoid O(n²) scans
@@ -242,7 +242,13 @@ func (s *PredictionServiceV2) Predict(req PredictionRequest) (*PredictionRespons
 		estAll = math.Round(estAll)
 	}
 
-	return &PredictionResponse{HeatingTime: estAll}, nil
+	resp := &PredictionResponse{HeatingTime: estAll, SampleCount: len(top)}
+	if len(top) > 1 {
+		min, max := v2HeatingTimeRange(top)
+		resp.ConfidenceMin = &min
+		resp.ConfidenceMax = &max
+	}
+	return resp, nil
 }
 
 // ------------- helpers --------------
@@ -448,6 +454,20 @@ func smartRound(est float64, lastSat float64) float64 {
 		return math.Ceil(est)
 	}
 	return math.Round(est) // near-perfect recently -> unbiased
+}
+
+// v2HeatingTimeRange returns the min and max HeatingTime among the top-K neighbors.
+func v2HeatingTimeRange(recs []recWrap) (min, max float64) {
+	min, max = recs[0].rec.HeatingTime, recs[0].rec.HeatingTime
+	for _, r := range recs[1:] {
+		if r.rec.HeatingTime < min {
+			min = r.rec.HeatingTime
+		}
+		if r.rec.HeatingTime > max {
+			max = r.rec.HeatingTime
+		}
+	}
+	return
 }
 
 // lastUserFeedback returns the most recent satisfaction for the user.
