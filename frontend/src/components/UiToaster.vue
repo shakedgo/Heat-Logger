@@ -3,13 +3,16 @@
     <div class="toaster" aria-live="polite" aria-atomic="true">
       <transition-group name="toast" tag="div">
         <div
-          v-for="t in ui.state.toasts"
+          v-for="t in ui._state.toasts"
           :key="t.id"
           class="toast"
           :class="t.type"
           role="status"
         >
           <span class="msg">{{ t.message }}</span>
+          <button v-if="t.action" class="toast-action" @click="t.action.callback()">
+            {{ t.action.label }}
+          </button>
         </div>
       </transition-group>
     </div>
@@ -57,6 +60,21 @@ function close(result) {
   box-shadow: 0 12px 22px rgba(0,0,0,0.14);
   font-size: 15px;
   line-height: 1.25;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.toast-action {
+  background: rgba(255,255,255,0.18);
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  &:hover { background: rgba(255,255,255,0.28); }
 }
 .toast.success { background: #065f46; }
 .toast.error { background: #7f1d1d; }
