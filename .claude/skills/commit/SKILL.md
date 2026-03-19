@@ -1,4 +1,5 @@
 ---
+name: commit
 description: Analyzes staged git changes and generates a standardized, formatted commit message.
 ---
 
