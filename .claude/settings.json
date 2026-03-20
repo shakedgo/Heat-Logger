@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "files=$(echo \"$CLAUDE_TOOL_INPUT\" | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('file_path',''))\" 2>/dev/null); if echo \"$files\" | grep -q '\\.go$'; then cd /home/shakedgo/Desktop/PersonalProjects/Heat-Logger/backend && gofmt -w \"$files\" 2>/dev/null || true; fi"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=$(echo \"$CLAUDE_TOOL_INPUT\" | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('file_path',''))\" 2>/dev/null); if echo \"$file\" | grep -qE '(\\.env)$'; then echo 'Blocked: edit .env.example instead of .env'; exit 2; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
