@@ -77,6 +77,8 @@ func NewPredictionServiceV2(recordService RecordServiceInterface, cfg *Predictio
 		K:                   25,    // Number of nearest neighbors (records) to consider from history (user + global).
 		MinK:                6,     // Minimum number of records required for a prediction — ensures stability when history is sparse.
 		RecencyHalfLifeDays: 5.0,   // Weight decay half-life in days — newer feedback counts more, halves in influence every N days.
+		AnchorEpsilon:       5.0,   // Satisfaction band around 50 considered “near-perfect” — records within this range receive the anchor boost.
+		AnchorBoost:         3.0,   // Multiplicative weight boost for near-perfect records — amplifies the most valuable training examples.
 		AnchorBlend:         0.35,  // Blend ratio between nearest-neighbor average and “perfect anchor” values — higher = perfects pull prediction more strongly.
 		UserBoost:           2,     // Multiplier for weights from the current user’s history — increases personalisation over global data.
 		StepCapFraction:     0.35,  // Max fractional change (vs. previous prediction) allowed in one step — smooths large jumps.
@@ -237,7 +239,9 @@ func (s *PredictionServiceV2) Predict(req PredictionRequest) (*PredictionRespons
 	// 8) Absolute bounds and smart rounding (avoid 48.0x → ceil → 49 loop when feedback is hot)
 	estAll = clamp(estAll, s.cfg.MinMinutes, s.cfg.MaxMinutes)
 	if lastSat, ok := lastUserFeedback(userRecords); ok {
-		estAll = smartRound(estAll, lastSat)
+		estAll = smartRound(estAll, lastSat, s.cfg.NeverCold)
+	} else if s.cfg.NeverCold {
+		estAll = math.Ceil(estAll)
 	} else {
 		estAll = math.Round(estAll)
 	}
@@ -285,50 +289,6 @@ func freqCellKey(r models.DailyRecord) string {
 	return fmt.Sprintf("%d|%d", d, t)
 }
 
-func latestUserRecord(userRecs []models.DailyRecord) (models.DailyRecord, bool) {
-	if len(userRecs) == 0 {
-		return models.DailyRecord{}, false
-	}
-	latest := userRecs[0]
-	for _, r := range userRecs[1:] {
-		if r.Date.After(latest.Date) {
-			latest = r
-		}
-	}
-	return latest, true
-}
-
-func weightedMean(recs []recWrap) float64 {
-	totalW := 0.0
-	sum := 0.0
-	for _, r := range recs {
-		if r.weight <= 0 {
-			continue
-		}
-		sum += r.rec.HeatingTime * r.weight
-		totalW += r.weight
-	}
-	if totalW == 0 {
-		return 30.0
-	}
-	return sum / totalW
-}
-
-func weightedMeanAnchors(recs []recWrap) (mean float64, weightSum float64) {
-	totalW := 0.0
-	sum := 0.0
-	for _, r := range recs {
-		if !r.anchor || r.weight <= 0 {
-			continue
-		}
-		sum += r.rec.HeatingTime * r.weight
-		totalW += r.weight
-	}
-	if totalW == 0 {
-		return 0, 0
-	}
-	return sum / totalW, totalW
-}
 
 func sumWeights(recs []recWrap) float64 {
 	total := 0.0
@@ -445,26 +405,35 @@ func latestSimilarUserRecord(userRecs []models.DailyRecord, req PredictionReques
 }
 
 // smartRound: bias safe, but avoid sticking on the upper minute when user said "too hot".
-func smartRound(est float64, lastSat float64) float64 {
+// If neverCold is true, floor rounding is suppressed even when the user was recently hot.
+func smartRound(est float64, lastSat float64, neverCold bool) float64 {
 	frac := est - math.Floor(est)
 	if lastSat > 50 && frac <= 0.25 { // recently hot -> allow snap-down if close
+		if neverCold {
+			return math.Round(est)
+		}
 		return math.Floor(est)
 	}
 	if lastSat < 50 { // recently cold -> keep bias-to-hot
 		return math.Ceil(est)
 	}
+	if neverCold {
+		return math.Ceil(est)
+	}
 	return math.Round(est) // near-perfect recently -> unbiased
 }
 
-// v2HeatingTimeRange returns the min and max HeatingTime among the top-K neighbors.
+// v2HeatingTimeRange returns the min and max impliedTarget among the top-K neighbors,
+// matching the values actually used in the weighted prediction.
 func v2HeatingTimeRange(recs []recWrap) (min, max float64) {
-	min, max = recs[0].rec.HeatingTime, recs[0].rec.HeatingTime
+	min, max = impliedTarget(recs[0].rec), impliedTarget(recs[0].rec)
 	for _, r := range recs[1:] {
-		if r.rec.HeatingTime < min {
-			min = r.rec.HeatingTime
+		t := impliedTarget(r.rec)
+		if t < min {
+			min = t
 		}
-		if r.rec.HeatingTime > max {
-			max = r.rec.HeatingTime
+		if t > max {
+			max = t
 		}
 	}
 	return
