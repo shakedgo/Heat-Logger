@@ -16,13 +16,14 @@
       
       <div class="form-group">
         <label for="temperature">Average Temperature (°C):</label>
-        <input 
-          type="number" 
-          id="temperature" 
-          v-model="formData.averageTemperature" 
-          required 
+        <input
+          type="number"
+          id="temperature"
+          v-model="formData.averageTemperature"
+          required
           step="1"
         >
+        <small>Enter the current outdoor temperature</small>
       </div>
       
       <div class="form-group">
@@ -149,7 +150,7 @@ export default {
     return {
       formData: {
         userId: localStorage.getItem('heatLogger_userId') || '',
-        averageTemperature: '',
+        averageTemperature: localStorage.getItem('heatLogger_temperature') || '',
         showerDuration: '',
         satisfaction: 50
       },
@@ -163,8 +164,9 @@ export default {
       return 'perfect';
     },
     handleCalculate() {
-      // Save userId to localStorage for future use
+      // Save userId and temperature to localStorage for future use
       localStorage.setItem('heatLogger_userId', this.formData.userId);
+      localStorage.setItem('heatLogger_temperature', this.formData.averageTemperature);
       
       const data = {
         userId: this.formData.userId,
@@ -203,12 +205,12 @@ export default {
       this.resetForm();
     },
     resetForm() {
-      // Preserve userId when resetting form
-      const savedUserId = this.formData.userId;
+      // Preserve userId, temperature, and duration when resetting form
+      const { userId, averageTemperature, showerDuration } = this.formData;
       this.formData = {
-        userId: savedUserId,
-        averageTemperature: '',
-        showerDuration: '',
+        userId,
+        averageTemperature,
+        showerDuration,
         satisfaction: 50
       };
       this.currentEntry = null;
