@@ -25,13 +25,14 @@ import {
     faTimes,
     faTrash,
     faFileExport,
+    faSliders,
     faLocationDot,
     faRotate,
     faSun
 } from '@fortawesome/free-solid-svg-icons'
 
 /* Add icons to the library */
-library.add(faSnowflake, faFire, faTimes, faTrash, faFileExport, faLocationDot, faRotate, faSun)
+library.add(faSnowflake, faFire, faTimes, faTrash, faFileExport, faSliders, faLocationDot, faRotate, faSun)
 
 /* Create app */
 const app = createApp(App)
