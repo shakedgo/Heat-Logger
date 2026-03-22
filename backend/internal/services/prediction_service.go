@@ -28,9 +28,10 @@ func NewPredictionService(recordService *RecordService) *PredictionService {
 
 // PredictionRequest represents the input for heating time prediction
 type PredictionRequest struct {
-	UserID      string  `json:"userId" binding:"required"`
-	Duration    float64 `json:"duration" binding:"required,min=1,max=60"`
-	Temperature float64 `json:"temperature" binding:"required,min=-50,max=50"`
+	UserID        string   `json:"userId" binding:"required"`
+	Duration      float64  `json:"duration" binding:"required,min=1,max=60"`
+	Temperature   float64  `json:"temperature" binding:"required,min=-50,max=50"`
+	SunshineHours *float64 `json:"sunshineHours,omitempty"`
 }
 
 // PredictionResponse represents the prediction output

@@ -60,6 +60,16 @@ func (h *RecordHandler) CalculateHeatingTime(c *gin.Context) {
 		return
 	}
 
+	// Validate sunshine hours if provided
+	if req.SunshineHours != nil {
+		if *req.SunshineHours < 0 || *req.SunshineHours > 16 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Sunshine hours must be between 0 and 16",
+			})
+			return
+		}
+	}
+
 	// Get prediction
 	prediction, err := h.predictor.Predict(req)
 	if err != nil {
@@ -108,6 +118,16 @@ func (h *RecordHandler) SubmitFeedback(c *gin.Context) {
 			"error": "Satisfaction rating must be between 1 and 100",
 		})
 		return
+	}
+
+	// Validate sunshine hours if provided
+	if record.SunshineHours != nil {
+		if *record.SunshineHours < 0 || *record.SunshineHours > 16 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Sunshine hours must be between 0 and 16",
+			})
+			return
+		}
 	}
 
 	// Set date if not provided
@@ -247,7 +267,7 @@ func (h *RecordHandler) ExportHistory(c *gin.Context) {
 	defer writer.Flush()
 
 	// Write header
-	header := []string{"User ID", "Date", "Shower Duration", "Average Temperature", "Heating Time", "Satisfaction"}
+	header := []string{"User ID", "Date", "Shower Duration", "Average Temperature", "Heating Time", "Satisfaction", "Sunshine Hours"}
 	if err := writer.Write(header); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to write CSV header",
@@ -257,6 +277,10 @@ func (h *RecordHandler) ExportHistory(c *gin.Context) {
 
 	// Write data rows
 	for _, record := range records {
+		sunshineStr := ""
+		if record.SunshineHours != nil {
+			sunshineStr = strconv.FormatFloat(*record.SunshineHours, 'f', 1, 64)
+		}
 		row := []string{
 			record.UserID,
 			record.Date.Format("2006-01-02 15:04:05"),
@@ -264,6 +288,7 @@ func (h *RecordHandler) ExportHistory(c *gin.Context) {
 			strconv.FormatFloat(record.AverageTemperature, 'f', 1, 64),
 			strconv.FormatFloat(record.HeatingTime, 'f', 1, 64),
 			strconv.FormatFloat(record.Satisfaction, 'f', 1, 64),
+			sunshineStr,
 		}
 		if err := writer.Write(row); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
