@@ -19,16 +19,17 @@ import uiPlugin from './plugins/ui'
 /* Import Font Awesome */
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-import { 
-    faSnowflake, 
-    faFire, 
-    faTimes, 
+import {
+    faSnowflake,
+    faFire,
+    faTimes,
     faTrash,
-    faFileExport 
+    faFileExport,
+    faSliders
 } from '@fortawesome/free-solid-svg-icons'
 
 /* Add icons to the library */
-library.add(faSnowflake, faFire, faTimes, faTrash, faFileExport)
+library.add(faSnowflake, faFire, faTimes, faTrash, faFileExport, faSliders)
 
 /* Create app */
 const app = createApp(App)
