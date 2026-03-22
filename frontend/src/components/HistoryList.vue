@@ -1,5 +1,7 @@
 <template>
-  <div class="history-list card">
+  <div class="history-wrapper">
+    <SavingsSummary :history="history" />
+    <div class="history-list card">
     <div class="header">
       <h2>History</h2>
       <div class="actions">
@@ -51,11 +53,15 @@
       <div class="hint">Fill the form and calculate to start building your smart schedule.</div>
     </div>
   </div>
+  </div>
 </template>
 
 <script>
+import SavingsSummary from './SavingsSummary.vue'
+
 export default {
   name: 'HistoryList',
+  components: { SavingsSummary },
   props: {
     history: {
       type: Array,
@@ -360,5 +366,11 @@ export default {
   &.hot {
     color: #dc2f02;
   }
+}
+
+.history-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>
