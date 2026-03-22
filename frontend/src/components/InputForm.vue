@@ -15,15 +15,37 @@
       </div>
       
       <div class="form-group">
-        <label for="temperature">Average Temperature (°C):</label>
+        <label for="temperature">
+          Average Temperature (°C):
+          <span v-if="weatherSource === 'auto'" class="auto-badge">
+            <font-awesome-icon icon="location-dot" /> auto
+          </span>
+          <button
+            v-if="!weatherLoading"
+            type="button"
+            class="refresh-weather-btn"
+            @click="refreshWeather"
+            title="Refresh weather data"
+          >
+            <font-awesome-icon icon="rotate" />
+          </button>
+          <span v-if="weatherLoading" class="weather-loading">loading...</span>
+        </label>
         <input
           type="number"
           id="temperature"
           v-model="formData.averageTemperature"
           required
           step="1"
+          @input="weatherSource = 'manual'"
         >
         <small>Enter the current outdoor temperature</small>
+      </div>
+
+      <div v-if="sunshineHours != null" class="form-group sunshine-display">
+        <label>
+          <font-awesome-icon icon="sun" /> Sunshine today: {{ sunshineHours }}h
+        </label>
       </div>
       
       <div class="form-group">
@@ -45,6 +67,7 @@
         <div class="cv-stats">
           <p>Temperature: {{ currentEntry.averageTemperature }}°C</p>
           <p>Duration: {{ currentEntry.showerDuration }} minutes</p>
+          <p v-if="currentEntry.sunshineHours != null">Sunshine: {{ currentEntry.sunshineHours }}h</p>
         </div>
         <div class="cv-suggestion" v-if="currentEntry && currentEntry.heatingTime != null">
           <div class="cv-suggestion-main">
@@ -114,6 +137,8 @@
 </template>
 
 <script>
+import { fetchWeatherData, resetWeatherState } from '../utils/weather.js';
+
 export default {
   name: 'InputForm',
   props: {
@@ -151,10 +176,13 @@ export default {
       formData: {
         userId: localStorage.getItem('heatLogger_userId') || '',
         averageTemperature: localStorage.getItem('heatLogger_temperature') || '',
-        showerDuration: '',
+        showerDuration: localStorage.getItem('heatLogger_duration') || '',
         satisfaction: 50
       },
-      currentEntry: null
+      currentEntry: null,
+      sunshineHours: null,
+      weatherSource: null,
+      weatherLoading: false
     }
   },
   methods: {
@@ -163,22 +191,54 @@ export default {
       if (satisfaction > 60) return 'hot';
       return 'perfect';
     },
+    async loadWeather() {
+      this.weatherLoading = true;
+      try {
+        const weather = await fetchWeatherData();
+        if (weather) {
+          // Only auto-fill temperature if user hasn't manually entered one
+          if (!this.formData.averageTemperature && this.weatherSource !== 'manual') {
+            this.formData.averageTemperature = weather.temperature;
+            this.weatherSource = 'auto';
+          }
+          this.sunshineHours = weather.sunshineHours;
+        }
+      } catch (err) {
+        console.error('Weather load failed:', err);
+      } finally {
+        this.weatherLoading = false;
+      }
+    },
+    async refreshWeather() {
+      resetWeatherState();
+      this.weatherSource = null;
+      this.sunshineHours = null;
+      this.formData.averageTemperature = '';
+      await this.loadWeather();
+    },
     handleCalculate() {
-      // Save userId and temperature to localStorage for future use
+      // Save userId, temperature, and duration to localStorage for future use
       localStorage.setItem('heatLogger_userId', this.formData.userId);
       localStorage.setItem('heatLogger_temperature', this.formData.averageTemperature);
-      
+      localStorage.setItem('heatLogger_duration', this.formData.showerDuration);
+
       const data = {
         userId: this.formData.userId,
         duration: parseFloat(this.formData.showerDuration),
         temperature: parseFloat(this.formData.averageTemperature)
       };
 
+      // Include sunshine hours if available
+      if (this.sunshineHours != null) {
+        data.sunshineHours = this.sunshineHours;
+      }
+
       this.currentEntry = {
         userId: this.formData.userId,
         date: new Date().toISOString(),
         averageTemperature: parseFloat(this.formData.averageTemperature),
-        showerDuration: parseFloat(this.formData.showerDuration)
+        showerDuration: parseFloat(this.formData.showerDuration),
+        sunshineHours: this.sunshineHours
       };
       this.$emit('calculate', data);
       this.$toast('Calculating heating time...', { type: 'info', duration: 1200 });
@@ -198,8 +258,12 @@ export default {
       const feedbackData = {
         ...this.currentEntry,
         heatingTime: this.latestHeatingTime,
-        satisfaction
+        satisfaction,
       };
+      // Include sunshine hours in feedback if available
+      if (this.currentEntry.sunshineHours != null) {
+        feedbackData.sunshineHours = this.currentEntry.sunshineHours;
+      }
 
       this.$emit('submitFeedback', feedbackData);
       this.resetForm();
@@ -215,6 +279,9 @@ export default {
       };
       this.currentEntry = null;
     }
+  },
+  mounted() {
+    this.loadWeather();
   },
   watch: {
     latestHeatingTime: {
@@ -243,6 +310,51 @@ export default {
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 
   h2 { margin-top: 0; color: var(--heading); }
+
+  .auto-badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #10b981;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 6px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  .refresh-weather-btn {
+    background: none;
+    border: none;
+    color: #6b7280;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    width: auto;
+    margin-left: 4px;
+    &:hover { color: #3b82f6; }
+  }
+
+  .weather-loading {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-left: 6px;
+    font-style: italic;
+  }
+
+  .sunshine-display {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+
+    label {
+      color: #92400e;
+      font-weight: 500;
+      margin: 0;
+    }
+  }
 }
 
 .form-group {
@@ -455,4 +567,19 @@ button {
   .indicator-value { color: #e5e7eb; }
 }
 [data-theme='dark'] .button-group .cancel-btn { background-color: #dc2626; }
+[data-theme='dark'] .auto-badge {
+  background: #052e2b;
+  border-color: #0b4d45;
+  color: #34d399;
+}
+[data-theme='dark'] .sunshine-display {
+  background: #2a2000;
+  border-color: #5c4a00;
+  label { color: #fbbf24; }
+}
+[data-theme='dark'] .weather-loading { color: #9ca3af; }
+[data-theme='dark'] .refresh-weather-btn {
+  color: #9ca3af;
+  &:hover { color: #60a5fa; }
+}
 </style> 

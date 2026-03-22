@@ -16,6 +16,7 @@ type DailyRecord struct {
 	AverageTemperature float64        `json:"averageTemperature" gorm:"not null"`
 	HeatingTime        float64        `json:"heatingTime" gorm:"not null"`
 	Satisfaction       float64        `json:"satisfaction" gorm:"not null"`
+	SunshineHours      *float64       `json:"sunshineHours,omitempty" gorm:"type:real"`
 	CreatedAt          time.Time      `json:"createdAt" gorm:"autoCreateTime"`
 	UpdatedAt          time.Time      `json:"updatedAt" gorm:"autoUpdateTime"`
 	DeletedAt          gorm.DeletedAt `json:"deletedAt,omitempty" gorm:"index"`

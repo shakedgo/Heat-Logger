@@ -23,6 +23,7 @@
             <div>Temperature: {{ entry.averageTemperature }}°C</div>
             <div>Duration: {{ entry.showerDuration }} min</div>
             <div>Heating Time: <span class="heating-time">{{ entry.heatingTime.toFixed(1) }} min</span></div>
+            <div v-if="entry.sunshineHours != null"><font-awesome-icon icon="sun" class="sun-icon" /> {{ entry.sunshineHours }}h sun</div>
           </div>
           <div class="satisfaction-bar">
             <div class="satisfaction-label">Satisfaction:</div>
@@ -224,6 +225,10 @@ export default {
           .heating-time {
             color: #42b983;
             font-weight: 500;
+          }
+
+          .sun-icon {
+            color: #f59e0b;
           }
         }
       }

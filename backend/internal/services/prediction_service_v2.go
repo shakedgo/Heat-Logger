@@ -44,6 +44,7 @@ type PredictionConfigV2 struct {
 	// Gaussian kernel sigmas
 	SigmaDuration float64 // minutes
 	SigmaTemp     float64 // °C
+	SigmaSun      float64 // sunshine hours
 
 	// Neighborhood size
 	K    int // top‑K neighbors used for final estimate
@@ -74,6 +75,7 @@ func NewPredictionServiceV2(recordService RecordServiceInterface, cfg *Predictio
 	defaultCfg := PredictionConfigV2{
 		SigmaDuration:       4.0,   // Std-dev for Gaussian weighting on shower duration (min) — smaller = more sensitive to duration similarity.
 		SigmaTemp:           3.0,   // Std-dev for Gaussian weighting on ambient temperature (°C) — smaller = more sensitive to temperature similarity.
+		SigmaSun:            3.0,   // Std-dev for Gaussian weighting on sunshine hours — smaller = more sensitive to sunshine similarity.
 		K:                   25,    // Number of nearest neighbors (records) to consider from history (user + global).
 		MinK:                6,     // Minimum number of records required for a prediction — ensures stability when history is sparse.
 		RecencyHalfLifeDays: 5.0,   // Weight decay half-life in days — newer feedback counts more, halves in influence every N days.
@@ -94,6 +96,9 @@ func NewPredictionServiceV2(recordService RecordServiceInterface, cfg *Predictio
 		}
 		if cfg.SigmaTemp > 0 {
 			defaultCfg.SigmaTemp = cfg.SigmaTemp
+		}
+		if cfg.SigmaSun > 0 {
+			defaultCfg.SigmaSun = cfg.SigmaSun
 		}
 		if cfg.K > 0 {
 			defaultCfg.K = cfg.K
@@ -179,7 +184,12 @@ func (s *PredictionServiceV2) Predict(req PredictionRequest) (*PredictionRespons
 		// Gaussian distance on duration & temperature
 		wDur := gaussian(req.Duration-r.rec.ShowerDuration, s.cfg.SigmaDuration)
 		wTmp := gaussian(req.Temperature-r.rec.AverageTemperature, s.cfg.SigmaTemp)
-		w := wDur * wTmp
+		// Sunshine dimension: only apply when both request and record have data
+		wSun := 1.0
+		if req.SunshineHours != nil && r.rec.SunshineHours != nil {
+			wSun = gaussian(*req.SunshineHours-*r.rec.SunshineHours, s.cfg.SigmaSun)
+		}
+		w := wDur * wTmp * wSun
 
 		// Recency decay
 		days := math.Abs(now.Sub(r.rec.Date).Hours()) / 24.0
@@ -286,7 +296,11 @@ func clamp(x, lo, hi float64) float64 {
 func freqCellKey(r models.DailyRecord) string {
 	d := int(math.Round(r.ShowerDuration))
 	t := int(math.Round(r.AverageTemperature))
-	return fmt.Sprintf("%d|%d", d, t)
+	sunKey := "?"
+	if r.SunshineHours != nil {
+		sunKey = fmt.Sprintf("%d", int(math.Round(*r.SunshineHours)))
+	}
+	return fmt.Sprintf("%d|%d|%s", d, t, sunKey)
 }
 
 
